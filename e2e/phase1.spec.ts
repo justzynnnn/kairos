@@ -11,6 +11,11 @@ test("all core areas are reachable", async ({ page }) => {
 
 test("compound fallback reaches one editable confirmation", async ({ page }) => {
   await page.goto("/assistant");
+  await page.waitForLoadState("networkidle");
+  const command = page.getByLabel("What needs to happen?");
+  await expect(command).toHaveValue("");
+  await expect(command).toHaveAttribute("placeholder", "Describe what you want Kairos to plan");
+  await command.fill("Add Systems Design class tomorrow from 10 to 11:30, gym after class for an hour, and my paper is due Friday at 5pm. Block 90 minutes for research.");
   await page.getByRole("button", { name: "Create proposal" }).click();
   await expect(page.getByRole("heading", { name: "Create 4 schedule items." })).toBeVisible();
   await expect(page.locator('input[value="Systems Design Class"]')).toBeVisible();
@@ -45,7 +50,7 @@ test("mobile navigation keeps the Stitch pattern", async ({ page }, info) => {
   test.skip(!info.project.name.includes("iphone"), "mobile only");
   await page.goto("/");
   const nav = page.getByTestId("mobile-navigation");
-  for (const label of ["Home", "Planner", "AI", "Inbox", "Profile"]) await expect(nav.getByText(label, { exact: true })).toBeVisible();
+  for (const label of ["Home", "Planner", "Kairos", "Inbox", "Profile"]) await expect(nav.getByText(label, { exact: true })).toBeVisible();
 });
 
 test("schedule repair stays on Home and requires whole-plan approval", async ({ page }) => {
