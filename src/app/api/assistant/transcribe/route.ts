@@ -2,12 +2,11 @@ import { NextResponse } from "next/server";
 import { getViewer } from "@/lib/data";
 import { isOpenAIConfigured, transcribeAudio } from "@/lib/scheduling/openai";
 import { AI_LIMITS, reserveAIUsage } from "@/lib/scheduling/usage";
+import { isSupportedAudioMimeType } from "@/lib/audio";
 
 export const runtime = "nodejs";
 
 const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
-const allowedTypes = new Set(["audio/mp4", "audio/mpeg", "audio/webm", "audio/wav", "audio/x-m4a"]);
-
 export async function POST(request: Request) {
   if (!isOpenAIConfigured()) return NextResponse.json({ error: "Add OPENAI_API_KEY to enable private voice transcription." }, { status: 503 });
   const viewer = await getViewer();
@@ -17,7 +16,7 @@ export async function POST(request: Request) {
   if (!(audio instanceof File) || audio.size < 1 || audio.size > MAX_AUDIO_BYTES) {
     return NextResponse.json({ error: "Record a voice command smaller than 10 MB." }, { status: 400 });
   }
-  if (audio.type && !allowedTypes.has(audio.type)) return NextResponse.json({ error: "This audio format is not supported." }, { status: 415 });
+  if (!isSupportedAudioMimeType(audio.type)) return NextResponse.json({ error: "This audio format is not supported." }, { status: 415 });
   if (!Number.isFinite(duration) || duration < 1 || duration > AI_LIMITS.maxRecordingSeconds) {
     return NextResponse.json({ error: `Recordings are limited to ${AI_LIMITS.maxRecordingSeconds} seconds.` }, { status: 400 });
   }
@@ -31,4 +30,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Voice transcription is temporarily unavailable. Your recording was not saved." }, { status: 502 });
   }
 }
-
