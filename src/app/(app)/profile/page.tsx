@@ -1,0 +1,1 @@
+import{ProfileWorkspace}from"@/components/profile-workspace";import{getViewer}from"@/lib/data";export const dynamic="force-dynamic";export default async function Page(){return <ProfileWorkspace viewer={await getViewer()}/>;}

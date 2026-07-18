@@ -1,0 +1,7 @@
+import{describe,expect,it}from"vitest";
+import{readFileSync}from"node:fs";
+import{haversineMeters}from"@/lib/journey/math";
+describe("Journey Mode privacy and routing",()=>{it("computes a realistic short campus distance",()=>{const distance=haversineMeters({latitude:14.5995,longitude:120.9842},{latitude:14.6011,longitude:120.9875});expect(distance).toBeGreaterThan(300);expect(distance).toBeLessThan(600)});it("stores destinations but defines no origin-coordinate history",()=>{const sql=readFileSync("supabase/migrations/202607180008_phase6_live_eta.sql","utf8");expect(sql).toContain("destination_latitude");expect(sql).not.toMatch(/origin_(latitude|longitude)/);expect(sql).not.toContain("journey_history")});it("keeps keys server-side",()=>{const component=readFileSync("src/components/journey-mode.tsx","utf8");expect(component).not.toContain("GOOGLE_MAPS_API_KEY");expect(component).not.toContain("OPENAI_API_KEY")});});
+
+import{deterministicInterpret}from"@/lib/scheduling/fallback";
+describe("video-safe typed fallback",()=>{it("understands a simple scheduled appointment and destination",()=>{const value=deterministicInterpret("Add dentist appointment tomorrow at 4pm for one hour at Makati Medical Center",new Date("2026-07-18T03:00:00Z"));expect(value?.actions).toHaveLength(1);expect(value?.actions[0]).toMatchObject({kind:"event",title:"Dentist Appointment",duration_minutes:60,location_label:"Makati Medical Center"})});});

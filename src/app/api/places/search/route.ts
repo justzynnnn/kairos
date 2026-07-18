@@ -1,0 +1,2 @@
+import{NextResponse}from"next/server";import{z}from"zod";import{searchPlaces}from"@/lib/journey/server";
+export const runtime="nodejs";export async function GET(request:Request){const parsed=z.string().trim().min(2).max(180).safeParse(new URL(request.url).searchParams.get("q"));if(!parsed.success)return NextResponse.json({error:"Enter at least two characters."},{status:400});try{return NextResponse.json({places:await searchPlaces(parsed.data)});}catch{return NextResponse.json({error:"Destination search is unavailable."},{status:503});}}

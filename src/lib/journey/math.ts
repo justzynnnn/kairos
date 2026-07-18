@@ -1,0 +1,1 @@
+export function haversineMeters(a:{latitude:number;longitude:number},b:{latitude:number;longitude:number}){const r=6371e3,rad=(v:number)=>v*Math.PI/180,dLat=rad(b.latitude-a.latitude),dLon=rad(b.longitude-a.longitude),x=Math.sin(dLat/2)**2+Math.cos(rad(a.latitude))*Math.cos(rad(b.latitude))*Math.sin(dLon/2)**2;return 2*r*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}

@@ -1,0 +1,49 @@
+{
+  "name": "kairos",
+  "version": "0.6.0",
+  "private": true,
+  "packageManager": "pnpm@11.9.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "seed:demo": "node scripts/seed-demo.mjs",
+    "audit:phase1": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "audit:phase2": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm test:e2e",
+    "audit:phase3": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm test:e2e",
+    "audit:phase4": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm test:e2e",
+    "audit:phase5": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm test:e2e",
+    "audit:phase6": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm test:e2e"
+  },
+  "dependencies": {
+    "@supabase/ssr": "0.12.3",
+    "@supabase/supabase-js": "2.110.7",
+    "lucide-react": "1.25.0",
+    "next": "16.2.10",
+    "openai": "6.48.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.61.1",
+    "@tailwindcss/postcss": "4.3.3",
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "16.3.2",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "6.0.3",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.2.10",
+    "fast-check": "4.9.0",
+    "jsdom": "29.1.1",
+    "tailwindcss": "4.3.3",
+    "typescript": "6.0.3",
+    "vitest": "4.1.10"
+  }
+}

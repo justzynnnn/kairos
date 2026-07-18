@@ -1,0 +1,1 @@
+export default function Loading(){return <div role="status" aria-label="Loading Kairos" className="space-y-6"><div className="skeleton h-8 w-48 rounded-lg"/><div className="skeleton h-72 rounded-2xl"/></div>}
