@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertCircle, Download, FileText, LoaderCircle, LockKeyhole, MessageCircle, Paperclip, Send } from "lucide-react";
+import { AlertCircle, CalendarCheck, Download, FileText, LoaderCircle, LockKeyhole, MessageCircle, Paperclip, Send } from "lucide-react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 import type { ConversationContact, ConversationView } from "@/lib/conversations/types";
 
@@ -16,6 +16,7 @@ export function ConversationPanel({role,supabaseConfigured}:{role:"justin"|"chlo
   const[body,setBody]=useState("");
   const[file,setFile]=useState<File|null>(null);
   const[busy,setBusy]=useState(false);
+  const[permissionBusy,setPermissionBusy]=useState<string|null>(null);
   const[loading,setLoading]=useState(true);
   const[error,setError]=useState<string|null>(null);
   const[context,setContext]=useState<{id:string;title:string}|null>(null);
@@ -30,12 +31,13 @@ export function ConversationPanel({role,supabaseConfigured}:{role:"justin"|"chlo
   useEffect(()=>{end.current?.scrollIntoView({block:"nearest"});},[conversation?.messages.length]);
 
   async function send(){if(!conversation||(!body.trim()&&!file))return;setBusy(true);setError(null);try{const nonce=crypto.randomUUID();let response:Response;if(file){const form=new FormData();form.set("file",file);form.set("body",body.trim()||`Shared ${file.name}`);form.set("clientNonce",nonce);if(context)form.set("relatedMeetingId",context.id);response=await fetch(`/api/conversations/${conversation.id}/attachments`,{method:"POST",headers:headers(),body:form});}else response=await fetch(`/api/conversations/${conversation.id}/messages`,{method:"POST",headers:{"Content-Type":"application/json",...headers()},body:JSON.stringify({body,clientNonce:nonce,relatedMeetingId:context?.id??null})});const data=await response.json();if(!response.ok)throw new Error(data.error);setBody("");setFile(null);setContext(null);if(fileInput.current)fileInput.current.value="";await load(conversation.otherUser.id);}catch(reason){setError(reason instanceof Error?reason.message:"Message could not be sent.");}finally{setBusy(false);}}
+  async function toggleMeetingAccess(contact:ConversationContact){setPermissionBusy(contact.id);setError(null);try{const enabled=contact.permissionScope!=="none",response=await fetch("/api/profile/permissions",{method:"PATCH",headers:{"Content-Type":"application/json",...headers()},body:JSON.stringify({granteeId:contact.id,scope:enabled?"none":"free_busy",categories:[]})}),data=await response.json();if(!response.ok)throw new Error(data.error);const next=contacts.map((entry)=>entry.id===contact.id?{...entry,permissionScope:(enabled?"none":"free_busy")as ConversationContact["permissionScope"]}:entry);setContacts(next);contactsRef.current=next;}catch(reason){setError(reason instanceof Error?reason.message:"Meeting access could not be updated.");}finally{setPermissionBusy(null);}}
 
   return <section className="card overflow-hidden" aria-label="Messages">
     <div className="grid min-h-[34rem] md:grid-cols-[17rem_1fr]">
       <aside className="border-b border-[var(--outline)] bg-white md:border-b-0 md:border-r">
         <header className="border-b border-[var(--outline)] p-4"><h2 className="font-display text-xl font-semibold text-[var(--navy)]">Chats</h2></header>
-        <div className="max-h-72 overflow-y-auto p-2 md:max-h-[31rem]">{loading&&!contacts.length?<div className="grid min-h-24 place-items-center"><LoaderCircle className="size-5 animate-spin text-[var(--cyan-deep)]"/></div>:contacts.length?contacts.map((contact)=><button key={contact.id} type="button" onClick={()=>select(contact.id)} className={`flex min-h-16 w-full items-center gap-3 rounded-xl p-3 text-left ${selectedId===contact.id?"bg-[var(--navy-container)] text-white":"hover:bg-[var(--surface-low)]"}`}><span className={`grid size-10 shrink-0 place-items-center rounded-full font-display font-bold ${selectedId===contact.id?"bg-white/15":"bg-[var(--cyan-soft)] text-[var(--navy)]"}`}>{initial(contact.name)}</span><span className="min-w-0"><strong className="block truncate text-sm">{contact.name}</strong><span className={`block truncate text-xs ${selectedId===contact.id?"text-white/65":"text-[var(--muted)]"}`}>{contact.email}</span></span></button>):<p className="p-4 text-sm text-[var(--muted)]">Add a friend to start chatting.</p>}</div>
+        <div className="max-h-72 overflow-y-auto p-2 md:max-h-[31rem]">{loading&&!contacts.length?<div className="grid min-h-24 place-items-center"><LoaderCircle className="size-5 animate-spin text-[var(--cyan-deep)]"/></div>:contacts.length?contacts.map((contact)=>{const meetingAccess=contact.permissionScope!=="none";return <article key={contact.id} className={`mb-1 rounded-xl ${selectedId===contact.id?"bg-[var(--navy-container)] text-white":"hover:bg-[var(--surface-low)]"}`}><button type="button" aria-label={`Open chat with ${contact.name}`} onClick={()=>select(contact.id)} className="flex min-h-16 w-full items-center gap-3 p-3 text-left"><span className={`grid size-10 shrink-0 place-items-center rounded-full font-display font-bold ${selectedId===contact.id?"bg-white/15":"bg-[var(--cyan-soft)] text-[var(--navy)]"}`}>{initial(contact.name)}</span><span className="min-w-0"><strong className="block truncate text-sm">{contact.name}</strong><span className={`block truncate text-xs ${selectedId===contact.id?"text-white/65":"text-[var(--muted)]"}`}>{contact.email}</span></span></button><button type="button" disabled={permissionBusy===contact.id} onClick={()=>void toggleMeetingAccess(contact)} aria-pressed={meetingAccess} aria-label={`${meetingAccess?"Disable":"Allow"} meeting access for ${contact.name}`} className={`mx-3 mb-3 inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-[11px] font-semibold ${selectedId===contact.id?"bg-white/15 text-white":"bg-white text-[var(--muted)]"}`}>{permissionBusy===contact.id?<LoaderCircle className="size-3 animate-spin"/>:<CalendarCheck className="size-3"/>}{meetingAccess?"Meeting access on":"Allow meetings"}</button></article>}):<p className="p-4 text-sm text-[var(--muted)]">Add a friend to start chatting.</p>}</div>
       </aside>
 
       <div className="flex min-w-0 flex-col bg-[var(--surface-low)]">
