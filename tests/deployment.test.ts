@@ -70,6 +70,26 @@ describe("account creation is the only way in", () => {
   });
 });
 
+describe("contact sync", () => {
+  it("caps a sync and never persists the address book", () => {
+    const route = fs.readFileSync("src/app/api/profile/contacts/route.ts", "utf8");
+    expect(route).toContain("max(200)");
+    expect(route).not.toMatch(/insert|upsert|storage/i);
+  });
+  it("matches contacts without returning anyone who is not already a user", () => {
+    const server = fs.readFileSync("src/lib/profile/server.ts", "utf8");
+    expect(server).toContain("matchContacts");
+    expect(server).toContain("MAX_CONTACT_EMAILS");
+  });
+  it("keeps meeting access with the contact list rather than the chat list", () => {
+    const contacts = fs.readFileSync("src/components/contacts-panel.tsx", "utf8");
+    const chat = fs.readFileSync("src/components/conversation-panel.tsx", "utf8");
+    expect(contacts).toContain("toggleMeetingAccess");
+    expect(contacts).toContain("categories:[]");
+    expect(chat).not.toContain("toggleMeetingAccess");
+  });
+});
+
 describe("interface depth and overflow", () => {
   it("defines every surface token the components reference", () => {
     const css = fs.readFileSync("src/app/globals.css", "utf8");
