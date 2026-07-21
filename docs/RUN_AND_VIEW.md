@@ -23,7 +23,7 @@ The restricted `/api/demo/reset` action restores seed data during local developm
 
 ## Enable real accounts, persistence, and AI
 
-Copy `.env.example` to `.env.local`, add the Supabase URL and anonymous key, apply all migrations through `202607180006_phase5_profiles_permissions_activity.sql`, and run `pnpm seed:demo`. Add `OPENAI_API_KEY` from the OpenAI Platform account whose API credits should fund Kairos. Restart the server after changing environment values.
+Copy `.env.example` to `.env.local`, add the Supabase URL and anonymous key, and apply all migrations through `202607180010_deployment_hardening.sql`. Register an account through the app; Kairos ships no seeded or shared demo accounts, and **Profile → Your controls → Demo data** loads sample rows for the signed-in user only. Add `OPENAI_API_KEY` from the OpenAI Platform account whose API credits should fund Kairos. Restart the server after changing environment values.
 
 - Supabase activates real registration, sessions, isolated schedules, creation proposals, repair proposals, meetings, secure messages/files, profile controls, permissions, private activity, and preferences.
 - The OpenAI key activates scheduling interpretation and voice transcription. The Phase 2 repair engine remains deterministic.
@@ -38,6 +38,8 @@ Use an HTTPS Vercel preview for microphone testing. In Safari, tap **Share → A
 ## Production-like local run
 
 Run `pnpm build`, then `pnpm start`, and open [http://localhost:3000](http://localhost:3000).
+
+Because an unconfigured deployment would otherwise serve one shared unauthenticated identity, `pnpm start` and any hosted deployment return **503** when the Supabase variables are missing. `pnpm dev` still runs the labeled preview. To deploy the preview deliberately, set `KAIROS_ALLOW_PREVIEW=1`.
 
 
 ## Phase 5 and mobile PWA check

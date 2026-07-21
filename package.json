@@ -11,7 +11,6 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "seed:demo": "node scripts/seed-demo.mjs",
     "audit:phase1": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "audit:phase2": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm test:e2e",
     "audit:phase3": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm test:e2e",

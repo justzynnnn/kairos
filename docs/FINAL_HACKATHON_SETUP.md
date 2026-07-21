@@ -74,7 +74,7 @@ Open **Vercel → Kairos → Settings → Environment Variables**. Add these to 
 | `OPENAI_TRANSCRIPTION_MODEL` | Recommended | `gpt-4o-transcribe` |
 | `CRON_SECRET` | Yes | A random value of at least 16 characters |
 | `GOOGLE_MAPS_API_KEY` | For live routing | Your restricted server-side Google Maps key |
-| `DEMO_ACCOUNT_PASSWORD` | Optional | A strong rehearsal-only password used by seed tooling |
+| `KAIROS_ALLOW_PREVIEW` | Optional | Set to `1` only to deploy the seeded preview intentionally. Without Supabase variables, a deployment returns 503 instead of serving one shared unauthenticated identity. |
 
 The Supabase variables in step 2 must also be present. Do not add quotes around values. After every environment change, open **Deployments**, choose the latest deployment menu, and **Redeploy**.
 
@@ -94,7 +94,7 @@ The Supabase variables in step 2 must also be present. Do not add quotes around 
 3. Turn on **Demo data**. This seeds only rows marked as Kairos demo records.
 4. Keep **Location access** on and set a travel buffer (15 minutes is the default).
 5. Return to Home and confirm the sample schedule appears.
-6. For the two-user meeting/Inbox demo, register `demo@kairos.app` and `chloe@kairos.app` in separate browser sessions, then turn on Demo data for both.
+6. For the two-user meeting/Inbox demo, register two accounts of your own in separate browser sessions, then turn on Demo data for both.
 7. Add your OpenAI key before recording the AI scheduling/voice portion. Confirmed AI proposals are real calendar rows and appear in Planner.
 
 ## 7. Google Journey Mode (optional live path)

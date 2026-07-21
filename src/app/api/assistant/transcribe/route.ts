@@ -3,11 +3,14 @@ import { getViewer } from "@/lib/data";
 import { isOpenAIConfigured, transcribeAudio } from "@/lib/scheduling/openai";
 import { AI_LIMITS, reserveAIUsage } from "@/lib/scheduling/usage";
 import { isSupportedAudioMimeType } from "@/lib/audio";
+import { allowRequest, clientKey, tooManyRequests } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
 export async function POST(request: Request) {
+  if (!allowRequest(clientKey(request.headers, "transcribe"), 10)) return tooManyRequests();
   if (!isOpenAIConfigured()) return NextResponse.json({ error: "Add OPENAI_API_KEY to enable private voice transcription." }, { status: 503 });
   const viewer = await getViewer();
   const form = await request.formData();

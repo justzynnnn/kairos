@@ -10,6 +10,7 @@ import { interpretRequestSchema } from "@/lib/scheduling/schema";
 import { reserveAIUsage } from "@/lib/scheduling/usage";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
   const body = interpretRequestSchema.safeParse(await request.json().catch(() => null));

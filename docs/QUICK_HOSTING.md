@@ -71,7 +71,7 @@ After saving variables, redeploy the project because environment-variable change
 
 ## Optional two-account meeting rehearsal
 
-1. With email confirmation temporarily off, register `demo@kairos.app` and `chloe@kairos.app` using a strong demo-only password.
+1. With email confirmation temporarily off, register two accounts of your own with distinct strong passwords.
 2. Turn on **Demo data** in both profiles.
 3. When the second account enables it, Kairos automatically creates their accepted connection, reciprocal free/busy permissions, and direct conversation.
 4. Use separate/private browser sessions to rehearse the meeting acceptance and final-confirmation flow.

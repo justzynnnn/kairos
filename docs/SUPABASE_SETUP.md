@@ -103,23 +103,13 @@ Do not use `supabase db reset --linked` on a project containing valuable data. T
    - temporarily disable confirmation only for the controlled demo project.
 4. Do not disable confirmation for an unrelated production project.
 
-## Part 7 — Seed the two demo users
+## Part 7 — Create your accounts
 
-The seed creates Justin and Chloe. It uses the elevated server key, so run it only from a trusted local terminal.
+Kairos ships no seeded or shared accounts. Register through the app's **Create account** form; the `on_auth_user_created` trigger provisions each profile automatically.
 
-```bash
-export DEMO_ACCOUNT_PASSWORD='use-a-strong-demo-only-password'
-pnpm seed:demo
-```
+To populate a new account with sample items, open **Profile → Your controls** and turn on **Demo data**. That seeds only rows marked as Kairos sample data for the signed-in user, and turning it off removes exactly those rows. It never touches another account and never exposes another participant's private event titles.
 
-Default local rehearsal accounts:
-
-- `demo@kairos.app`
-- `chloe@kairos.app`
-
-Use the same password for both demo accounts only in this isolated hackathon project. Do not reuse a personal password. If `DEMO_ACCOUNT_PASSWORD` is omitted, the seed uses a local-development fallback that is not appropriate for a public demonstration.
-
-The seed also creates the accepted Justin–Chloe connection, reciprocal free/busy permissions, a direct conversation, explicit Fitness and Preparation preferences, private automated updates, and seeded private activity history. It does not give either participant access to the other person's private event titles.
+For a two-account rehearsal, register a second account of your own and enable **Demo data** on both. Kairos then creates the accepted connection, reciprocal free/busy permissions, and direct conversation between them.
 
 ## Part 8 — Verify the setup
 
