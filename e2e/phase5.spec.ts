@@ -19,7 +19,7 @@ test("Planner week view is URL-backed and navigable", async ({ page }) => {
   await expect(page).toHaveURL(/view=week/);
 });
 
-test("Planner day view provides an hourly time guide", async ({ page }) => {
+test("Planner day view uses a vertical hourly timeline", async ({ page }) => {
   await page.goto("/planner");
   await page.waitForLoadState("networkidle");
   const guide = page.getByTestId("planner-time-guide");
@@ -27,6 +27,8 @@ test("Planner day view provides an hourly time guide", async ({ page }) => {
   await expect(guide).toContainText("6 AM");
   await expect(guide).toContainText("12 PM");
   await expect(guide).toContainText("10 PM");
+  await expect(guide.locator(".day-time-axis")).toBeVisible();
+  await expect(guide.locator(".timeline-item").first()).toBeVisible();
 });
 
 test("account settings have explicit Save and Cancel behavior", async ({

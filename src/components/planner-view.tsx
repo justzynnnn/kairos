@@ -5,21 +5,24 @@ import type { Route } from "next";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
-import { CalendarItemCard } from "@/components/calendar-item-card";
 import { CalendarItemActions } from "@/components/calendar-item-actions";
+import { CalendarItemCard } from "@/components/calendar-item-card";
 import { JourneyMode } from "@/components/journey-mode";
 import { RepairWorkspace as RepairWorkspacePanel } from "@/components/repair-workspace";
 import { formatTime, localDateKey } from "@/lib/format";
 import type { CalendarItem } from "@/lib/types";
 
 type PlannerViewMode = "day" | "week";
-const timeGuideHours = [6, 8, 10, 12, 14, 16, 18, 20, 22];
+type TimelineItem = {
+  item: CalendarItem;
+  startMinutes: number;
+  endMinutes: number;
+};
 
-function timeGuideLabel(hour: number) {
-  return new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(Date.UTC(2026, 0, 1, hour)));
+function timeGuideLabel(minutes: number) {
+  const hour = Math.floor(minutes / 60) % 24;
+  const hour12 = hour % 12 || 12;
+  return `${hour12} ${hour < 12 ? "AM" : "PM"}`;
 }
 
 function validDateKey(value: string | null) {
@@ -45,17 +48,39 @@ function itemDate(item: CalendarItem, timezone: string) {
   const instant = item.type === "deadline" ? item.dueAt : item.startAt;
   return instant ? localDateKey(instant, timezone) : "";
 }
-function minutesInZone(timezone: string) {
+function minutesInZone(timezone: string, value = new Date()) {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,
     hour: "2-digit",
     minute: "2-digit",
     hourCycle: "h23",
-  }).formatToParts(new Date());
+  }).formatToParts(value);
   const values = Object.fromEntries(
     parts.map((part) => [part.type, part.value]),
   );
   return Number(values.hour) * 60 + Number(values.minute);
+}
+function timelineItem(
+  item: CalendarItem,
+  timezone: string,
+): TimelineItem | null {
+  const startAt = item.startAt ?? item.dueAt;
+  if (!startAt) return null;
+  const startMinutes = minutesInZone(timezone, new Date(startAt));
+  const durationMinutes = item.endAt
+    ? Math.max(
+        15,
+        Math.round(
+          (new Date(item.endAt).getTime() - new Date(startAt).getTime()) /
+            60_000,
+        ),
+      )
+    : 30;
+  return {
+    item,
+    startMinutes,
+    endMinutes: Math.min(24 * 60, startMinutes + durationMinutes),
+  };
 }
 function plannerHref(
   nextView: PlannerViewMode,
@@ -139,6 +164,29 @@ export function PlannerView({
           year: "numeric",
         });
   const currentMinutes = minutesInZone(timezone);
+  const dayItems = visible
+    .sort((a, b) =>
+      (a.startAt ?? a.dueAt ?? "").localeCompare(b.startAt ?? b.dueAt ?? ""),
+    )
+    .map((item) => timelineItem(item, timezone))
+    .filter((item): item is TimelineItem => Boolean(item));
+  const earliestItem = Math.min(
+    6 * 60,
+    ...dayItems.map((item) => Math.floor(item.startMinutes / 60) * 60),
+  );
+  const latestItem = Math.max(
+    22 * 60,
+    ...dayItems.map((item) => Math.ceil(item.endMinutes / 60) * 60),
+  );
+  const timelineMinutes = latestItem - earliestItem;
+  const timeGuides = Array.from(
+    { length: timelineMinutes / 60 + 1 },
+    (_, index) => earliestItem + index * 60,
+  );
+  const showCurrentTime =
+    selected === today &&
+    currentMinutes >= earliestItem &&
+    currentMinutes <= latestItem;
 
   return (
     <div className="page-stack planner-page">
@@ -219,57 +267,91 @@ export function PlannerView({
               </h2>
             </div>
           </header>
-          {selected === today && (
-            <div
-              className="current-time-marker"
-              style={
-                {
-                  "--time-position": `${(currentMinutes / 1440) * 100}%`,
-                } as React.CSSProperties
-              }
-            >
-              <span>{formatTime(new Date().toISOString(), timezone)}</span>
-            </div>
-          )}
           <div
-            className="planner-time-guide"
-            aria-label="Hourly time guide. Scheduled items are listed in chronological order."
+            className="day-timeline"
+            aria-label="Hourly day timeline"
             data-testid="planner-time-guide"
-            tabIndex={0}
           >
-            <span className="planner-time-guide-label">Time guide</span>
-            <ol>
-              {timeGuideHours.map((hour) => (
-                <li key={hour}>
-                  <time dateTime={`${String(hour).padStart(2, "0")}:00`}>
-                    {timeGuideLabel(hour)}
+            <ol className="day-time-axis" aria-label="Time of day">
+              {timeGuides.map((minutes) => (
+                <li
+                  key={minutes}
+                  style={{
+                    top: `${((minutes - earliestItem) / timelineMinutes) * 100}%`,
+                  }}
+                >
+                  <time
+                    dateTime={`${String(Math.floor(minutes / 60)).padStart(2, "0")}:00`}
+                  >
+                    {timeGuideLabel(minutes)}
                   </time>
                 </li>
               ))}
             </ol>
-          </div>
-          <div className="day-agenda">
-            {visible.length ? (
-              visible
-                .sort((a, b) =>
-                  (a.startAt ?? a.dueAt ?? "").localeCompare(
-                    b.startAt ?? b.dueAt ?? "",
-                  ),
-                )
-                .map((item) => (
-                  <CalendarItemCard
-                    key={item.id}
-                    item={item}
-                    timezone={timezone}
-                    detailsHref={plannerHref("day", selected, item.id)}
+            <div
+              className="day-timeline-surface"
+              style={
+                {
+                  "--timeline-height": `${(timelineMinutes / 60) * 4.5}rem`,
+                } as React.CSSProperties
+              }
+            >
+              <div className="day-timeline-guides" aria-hidden>
+                {timeGuides.map((minutes) => (
+                  <span
+                    key={minutes}
+                    style={{
+                      top: `${((minutes - earliestItem) / timelineMinutes) * 100}%`,
+                    }}
                   />
-                ))
-            ) : (
-              <div className="empty-state">
-                <h2>Nothing scheduled</h2>
-                <p>Create an item or leave this time intentionally open.</p>
+                ))}
               </div>
-            )}
+              {showCurrentTime && (
+                <div
+                  className="current-time-marker"
+                  style={
+                    {
+                      "--time-position": `${((currentMinutes - earliestItem) / timelineMinutes) * 100}%`,
+                    } as React.CSSProperties
+                  }
+                >
+                  <span>{formatTime(new Date().toISOString(), timezone)}</span>
+                </div>
+              )}
+              {dayItems.length ? (
+                dayItems.map(({ item, startMinutes, endMinutes }) => (
+                  <div
+                    key={item.id}
+                    className="timeline-item"
+                    style={
+                      {
+                        "--item-accent":
+                          item.status === "completed"
+                            ? "var(--success)"
+                            : item.flexibility === "fixed"
+                              ? "var(--navy)"
+                              : item.flexibility === "protected"
+                                ? "var(--gold)"
+                                : "var(--cyan-deep)",
+                        top: `${((startMinutes - earliestItem) / timelineMinutes) * 100}%`,
+                        height: `${((endMinutes - startMinutes) / timelineMinutes) * 100}%`,
+                      } as React.CSSProperties
+                    }
+                  >
+                    <CalendarItemCard
+                      item={item}
+                      timezone={timezone}
+                      detailsHref={plannerHref("day", selected, item.id)}
+                    />
+                  </div>
+                ))
+              ) : (
+                <div className="empty-state day-timeline-empty">
+                  <h2>Nothing scheduled</h2>
+                  <p>Create an item or leave this time intentionally open.</p>
+                </div>
+              )}
+            </div>
           </div>
         </section>
       ) : (

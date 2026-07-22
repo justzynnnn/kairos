@@ -1263,46 +1263,72 @@ a {
   border-bottom: 1px solid var(--outline-soft);
   padding: 1rem 1.25rem;
 }
-.planner-time-guide {
-  align-items: center;
-  background: var(--surface-low);
-  border-bottom: 1px solid var(--outline-soft);
-  display: flex;
-  gap: 1rem;
-  min-height: 3.25rem;
-  overflow-x: auto;
-  padding: 0.55rem 1.25rem;
+.day-timeline {
+  display: grid;
+  grid-template-columns: 3.75rem minmax(0, 1fr);
+  max-width: 52rem;
+  padding: 1rem 1rem 1rem 0;
 }
-.planner-time-guide-label {
-  color: var(--muted);
-  flex: 0 0 auto;
-  font-size: 0.68rem;
-  font-weight: 750;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.planner-time-guide ol {
-  display: flex;
-  flex: 1;
-  justify-content: space-between;
+.day-time-axis {
   list-style: none;
   margin: 0;
-  min-width: 38rem;
   padding: 0;
-}
-.planner-time-guide li {
-  color: var(--muted);
-  font-size: 0.7rem;
   position: relative;
 }
-.planner-time-guide li::after {
-  background: var(--outline);
-  content: "";
-  height: 0.5rem;
-  left: 50%;
+.day-time-axis li {
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1;
   position: absolute;
-  top: 1.2rem;
-  width: 1px;
+  right: 0;
+  transform: translateY(-50%);
+}
+.day-time-axis time {
+  display: block;
+  padding-right: 0.75rem;
+  text-align: right;
+}
+.day-timeline-surface {
+  background: linear-gradient(to right, var(--surface-low), transparent 5rem);
+  border-left: 1px solid var(--outline-soft);
+  min-height: var(--timeline-height);
+  position: relative;
+}
+.day-timeline-guides,
+.day-timeline-guides span {
+  inset-inline: 0;
+  pointer-events: none;
+  position: absolute;
+}
+.day-timeline-guides {
+  inset-block: 0;
+}
+.day-timeline-guides span {
+  border-top: 1px solid var(--outline-soft);
+}
+.timeline-item {
+  left: 0.75rem;
+  position: absolute;
+  right: 0.75rem;
+  z-index: 1;
+}
+.timeline-item .schedule-item {
+  height: 100%;
+  min-height: 3.1rem;
+  overflow: hidden;
+  padding: 0.55rem 0.65rem;
+}
+.timeline-item .schedule-item .schedule-meta {
+  margin-top: 0.15rem;
+}
+.timeline-item .schedule-item .mt-2 {
+  margin-top: 0.25rem;
+}
+.day-timeline-empty {
+  align-self: start;
+  margin: 1rem;
+  position: relative;
+  z-index: 1;
 }
 .day-agenda {
   display: grid;
@@ -1317,7 +1343,7 @@ a {
   pointer-events: none;
   position: absolute;
   right: 0;
-  top: clamp(5rem, var(--time-position), calc(100% - 0.5rem));
+  top: var(--time-position);
   z-index: 2;
 }
 .current-time-marker span {
