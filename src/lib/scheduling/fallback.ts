@@ -1,4 +1,5 @@
 import type {
+  CommandHint,
   DeadlinePreparation,
   SchedulingAction,
   SchedulingIntent,
@@ -251,5 +252,54 @@ export function deterministicInterpret(
     ],
     external_send_authorized: false,
     actions,
+  };
+}
+
+function shift(iso: string, minutes: number) {
+  const t = new Date(new Date(iso).getTime() + (minutes + 480) * 60_000);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${t.getUTCFullYear()}-${p(t.getUTCMonth() + 1)}-${p(t.getUTCDate())}T${p(t.getUTCHours())}:${p(t.getUTCMinutes())}:00+08:00`;
+}
+
+// Expands an on-device model's few fields into a schema-conforming intent.
+// Every timestamp and every flexibility rule is computed here rather than by
+// the model, so a hallucinated field cannot reach the engine. Returns null when
+// the hint is too thin to be safe, which sends the caller back to the normal
+// interpretation path.
+export function interpretFromHint(
+  hint: CommandHint,
+  now = new Date(),
+): SchedulingIntent | null {
+  const when = hint.when ?? "";
+  const timeToken = when.match(/\d{1,2}(?::\d{2})?\s*(?:am|pm)?/i)?.[0];
+  const c = timeToken ? clock(timeToken) : null;
+  const start = c
+    ? at(now, offset(when.replace(timeToken!, ""), now), c)
+    : null;
+  // An event with no resolvable time would be guesswork, so defer instead.
+  if (hint.kind === "event" && !start) return null;
+  const duration = hint.duration_minutes;
+  const assumptions = ["Interpreted on this device by Apple Intelligence."];
+  if (!duration && hint.kind !== "deadline")
+    assumptions.push("Used a 60-minute duration because none was provided.");
+  return {
+    summary: `Create 1 schedule item.`,
+    ambiguity: false,
+    follow_up_kind: "none",
+    essential_question: null,
+    assumptions,
+    external_send_authorized: false,
+    actions: [
+      make({
+        kind: hint.kind,
+        title: title(hint.title),
+        category: hint.category,
+        start_at: hint.kind === "deadline" ? null : start,
+        due_at: hint.kind === "deadline" ? start : null,
+        end_at:
+          hint.kind === "event" && start ? shift(start, duration ?? 60) : null,
+        duration_minutes: hint.kind === "deadline" ? null : (duration ?? 60),
+      }),
+    ],
   };
 }

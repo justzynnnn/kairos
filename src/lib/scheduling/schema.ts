@@ -35,10 +35,23 @@ export const deadlinePreparationSchema = z.object({
   totalEffortMinutes: z.number().int().min(15).max(2400),
   sessionLengthMinutes: z.number().int().min(15).max(480),
 });
+// What an on-device model is asked to produce. Apple Intelligence has no
+// guided generation through the Capacitor plugin, so it never sees the intent
+// schema above; it returns these few fields and interpretFromHint builds the
+// conforming intent. Declared here rather than beside the client so the route
+// can validate it without importing Capacitor.
+export const commandHintSchema = z.object({
+  kind: z.enum(["event", "task", "deadline", "preparation"]),
+  title: z.string().trim().min(1).max(160),
+  category: z.string().trim().min(1).max(60),
+  when: z.string().trim().max(80).nullable(),
+  duration_minutes: z.number().int().positive().max(720).nullable(),
+});
 export const interpretRequestSchema = z.object({
   command: z.string().trim().min(2).max(2000),
   clarification: z.string().trim().max(1000).optional(),
   deadlinePreparation: deadlinePreparationSchema.optional(),
+  hint: commandHintSchema.optional(),
 });
 export const proposalItemSchema = z.object({
   clientId: z.string().min(1).max(80),
@@ -68,6 +81,7 @@ export const confirmProposalSchema = z.object({
   items: z.array(proposalItemSchema).min(1).max(20),
   remember: z.boolean().default(false),
 });
+export type CommandHint = z.infer<typeof commandHintSchema>;
 export type SchedulingAction = z.infer<typeof schedulingActionSchema>;
 export type SchedulingIntent = z.infer<typeof schedulingIntentSchema>;
 export type DeadlinePreparation = z.infer<typeof deadlinePreparationSchema>;

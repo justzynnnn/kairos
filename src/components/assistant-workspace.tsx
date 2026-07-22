@@ -15,13 +15,14 @@ import type {
   ProposalItem,
 } from "@/lib/scheduling/schema";
 import { fromDateTimeLocal, toDateTimeLocal } from "@/lib/format";
+import { interpretOnDevice } from "@/lib/scheduling/native-llm";
 type Proposal = {
   status: "proposal";
   proposalId: string;
   summary: string;
   assumptions: string[];
   items: ProposalItem[];
-  provider: "openai" | "deterministic";
+  provider: "apple-intelligence" | "openai" | "deterministic";
   providerNotice: string | null;
   preview: boolean;
 };
@@ -62,10 +63,20 @@ export function AssistantWorkspace({
     setError(null);
     setSuccess(null);
     try {
+      // Returns null off-device, when Apple Intelligence is unavailable, or
+      // when the reply does not validate, and the server then interprets as
+      // usual. A clarification reply carries context the hint cannot express.
+      const hint = extra.clarification
+        ? null
+        : await interpretOnDevice(command);
       const r = await fetch("/api/assistant/interpret", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ command, ...extra }),
+          body: JSON.stringify({
+            command,
+            ...(hint ? { hint } : {}),
+            ...extra,
+          }),
         }),
         d = await r.json();
       if (!r.ok) throw new Error(d.error);
@@ -402,9 +413,11 @@ export function AssistantWorkspace({
                 </h2>
               </div>
               <span className="rounded-full bg-[var(--gold-soft)] px-3 py-1 text-xs font-bold text-[var(--gold-deep)]">
-                {proposal.provider === "openai"
-                  ? "OpenAI interpreted"
-                  : "Limited fallback"}
+                {proposal.provider === "apple-intelligence"
+                  ? "Interpreted on device"
+                  : proposal.provider === "openai"
+                    ? "OpenAI interpreted"
+                    : "Limited fallback"}
               </span>
             </div>
             {proposal.providerNotice && (

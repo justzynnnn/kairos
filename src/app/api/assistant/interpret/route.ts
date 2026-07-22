@@ -7,7 +7,10 @@ import {
   buildScheduleProposal,
   SchedulingValidationError,
 } from "@/lib/scheduling/engine";
-import { deterministicInterpret } from "@/lib/scheduling/fallback";
+import {
+  deterministicInterpret,
+  interpretFromHint,
+} from "@/lib/scheduling/fallback";
 import {
   interpretWithOpenAI,
   isOpenAIConfigured,
@@ -42,11 +45,20 @@ export async function POST(request: Request) {
     getCalendarItems(),
     getPreferences(),
   ]);
-  let provider: "openai" | "deterministic" = "deterministic";
+  let provider: "apple-intelligence" | "openai" | "deterministic" =
+    "deterministic";
   let providerNotice: string | null = null;
   let intent = null;
 
-  if (isOpenAIConfigured()) {
+  // The client only ever sends the few fields from commandHintSchema, already
+  // validated above. Every timestamp and permission is still derived here, so a
+  // forged hint can do no more than a typed command could.
+  if (body.data.hint) {
+    intent = interpretFromHint(body.data.hint, new Date());
+    if (intent) provider = "apple-intelligence";
+  }
+
+  if (!intent && isOpenAIConfigured()) {
     const allowed = await reserveAIUsage(viewer, "text", 1);
     if (!allowed)
       return NextResponse.json(
@@ -70,7 +82,7 @@ export async function POST(request: Request) {
       providerNotice =
         "OpenAI was unavailable or returned an invalid result. Kairos used the limited deterministic fallback.";
     }
-  } else {
+  } else if (!intent) {
     providerNotice =
       "OpenAI is not configured. Kairos used the limited deterministic fallback.";
   }
