@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { HomeDashboard } from "@/components/home-dashboard";
 import { getActivityDays } from "@/lib/activity";
 import { getCalendarItems, getViewer } from "@/lib/data";
-import { isOpenAIConfigured } from "@/lib/scheduling/openai";
+import { isGeminiConfigured } from "@/lib/scheduling/gemini";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Today" };
@@ -17,7 +17,7 @@ export default async function HomePage() {
     <HomeDashboard
       viewer={viewer}
       items={items}
-      openAIConfigured={isOpenAIConfigured()}
+      cloudFallbackConfigured={isGeminiConfigured()}
       activityDays={activityDays}
     />
   );

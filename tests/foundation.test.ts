@@ -11,11 +11,16 @@ describe("privacy boundaries", () => {
       expect(env).not.toContain(`NEXT_PUBLIC_${key}`);
   });
   it("never stores audio in Phase 1 routes", () => {
-    const route = fs.readFileSync(
-      "src/app/api/assistant/transcribe/route.ts",
+    expect(fs.existsSync("src/app/api/assistant/transcribe/route.ts")).toBe(
+      false,
+    );
+    const nativeSpeech = fs.readFileSync(
+      "ios/App/App/KairosIntelligencePlugin.swift",
       "utf8",
     );
-    expect(route).not.toMatch(/storage|writeFile|insert\(/);
+    expect(nativeSpeech).toContain("SpeechAnalyzer");
+    expect(nativeSpeech).toContain("requiresOnDeviceRecognition = true");
+    expect(nativeSpeech).not.toContain("audio.transcriptions");
   });
   it("ships atomic proposal confirmation", () => {
     const sql = fs.readFileSync(

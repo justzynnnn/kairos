@@ -20,12 +20,12 @@ function itemInstant(item: CalendarItem) {
 export function HomeDashboard({
   viewer,
   items,
-  openAIConfigured,
+  cloudFallbackConfigured,
   activityDays,
 }: {
   viewer: Viewer;
   items: CalendarItem[];
-  openAIConfigured: boolean;
+  cloudFallbackConfigured: boolean;
   activityDays: ActivityDay[];
 }) {
   const now = new Date();
@@ -95,7 +95,9 @@ export function HomeDashboard({
             </>
           )}
         </section>
-        <HomeAssistantComposer openAIConfigured={openAIConfigured} />
+        <HomeAssistantComposer
+          cloudFallbackConfigured={cloudFallbackConfigured}
+        />
       </div>
 
       <div className="home-detail-grid">

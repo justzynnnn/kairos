@@ -35,11 +35,8 @@ export const deadlinePreparationSchema = z.object({
   totalEffortMinutes: z.number().int().min(15).max(2400),
   sessionLengthMinutes: z.number().int().min(15).max(480),
 });
-// What an on-device model is asked to produce. Apple Intelligence has no
-// guided generation through the Capacitor plugin, so it never sees the intent
-// schema above; it returns these few fields and interpretFromHint builds the
-// conforming intent. Declared here rather than beside the client so the route
-// can validate it without importing Capacitor.
+// Compact compatibility hint for non-Foundation-Models clients. The native
+// iOS bridge uses Swift @Generable structures and submits a fully typed intent.
 export const commandHintSchema = z.object({
   kind: z.enum(["event", "task", "deadline", "preparation"]),
   title: z.string().trim().min(1).max(160),
@@ -52,7 +49,11 @@ export const interpretRequestSchema = z.object({
   clarification: z.string().trim().max(1000).optional(),
   deadlinePreparation: deadlinePreparationSchema.optional(),
   hint: commandHintSchema.optional(),
+  nativeIntent: schedulingIntentSchema.optional(),
 });
+export const cloudInterpretRequestSchema = interpretRequestSchema
+  .omit({ hint: true, nativeIntent: true })
+  .extend({ consentGranted: z.literal(true) });
 export const proposalItemSchema = z.object({
   clientId: z.string().min(1).max(80),
   type: z.enum(["event", "task", "deadline", "preparation"]),

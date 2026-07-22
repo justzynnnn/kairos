@@ -23,10 +23,10 @@ The restricted `/api/demo/reset` action restores seed data during local developm
 
 ## Enable real accounts, persistence, and AI
 
-Copy `.env.example` to `.env.local`, add the Supabase URL and anonymous key, and apply all migrations through `202607220011_contextual_repair_ios.sql`. Register an account through the app; Kairos ships no seeded or shared demo accounts, and **Profile → Your controls → Demo data** loads sample rows for the signed-in user only. Add `OPENAI_API_KEY` from the OpenAI Platform account whose API credits should fund Kairos. Restart the server after changing environment values.
+Copy `.env.example` to `.env.local`, add the Supabase URL and anonymous key, and apply all migrations through `202607230014_mobile_diagnostics.sql`. Register an account through the app; Kairos ships no seeded or shared demo accounts. Add `GEMINI_API_KEY` only if you want the explicit-consent cloud fallback. Restart the server after changing environment values.
 
 - Supabase activates real registration, sessions, isolated schedules, creation proposals, repair proposals, meetings, secure messages/files, profile controls, permissions, private activity, and preferences.
-- The OpenAI key activates scheduling interpretation and voice transcription. The Phase 2 repair engine remains deterministic.
+- Apple Intelligence and Apple Speech run on-device in the bundled iPhone client. Gemini is an optional server fallback and requires consent for every request. The repair engine remains deterministic.
 - Set `CRON_SECRET` to a random value of at least 16 characters.
 - Keep `SUPABASE_SERVICE_ROLE_KEY` server-only so the protected missed-start check can scan without exposing schedule contents.
 - Vercel runs the protected missed-start check daily. Opening any authenticated screen records the local day start and performs immediate contextual detection.
@@ -42,7 +42,6 @@ The installed web app cannot keep geolocation alive as a true background monitor
 Run `pnpm build`, then `pnpm start`, and open [http://localhost:3000](http://localhost:3000).
 
 Because an unconfigured deployment would otherwise serve one shared unauthenticated identity, `pnpm start` and any hosted deployment return **503** when the Supabase variables are missing. `pnpm dev` still runs the labeled preview. To deploy the preview deliberately, set `KAIROS_ALLOW_PREVIEW=1`.
-
 
 ## Phase 5 and mobile PWA check
 

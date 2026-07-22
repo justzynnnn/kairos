@@ -1,4 +1,14 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
-export default defineConfig([...nextVitals, ...nextTs, globalIgnores([".next/**", "playwright-report/**", "test-results/**"])]);
+export default defineConfig([
+  ...nextVitals,
+  ...nextTs,
+  globalIgnores([
+    ".next/**",
+    "mobile-dist/**",
+    "ios/App/App/public/**",
+    "playwright-report/**",
+    "test-results/**",
+  ]),
+]);

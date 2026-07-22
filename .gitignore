@@ -1,5 +1,6 @@
 node_modules/
 .next/
+mobile-dist/
 coverage/
 playwright-report/
 test-results/

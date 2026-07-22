@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { AssistantWorkspace } from "@/components/assistant-workspace";
 import { getViewer } from "@/lib/data";
-import { isOpenAIConfigured } from "@/lib/scheduling/openai";
+import { isGeminiConfigured } from "@/lib/scheduling/gemini";
 
 export const metadata: Metadata = { title: "Assistant" };
 
@@ -35,7 +35,7 @@ export default async function AssistantPage({
         </div>
       </header>
       <AssistantWorkspace
-        openAIConfigured={isOpenAIConfigured()}
+        cloudFallbackConfigured={isGeminiConfigured()}
         initialCommand={params.command?.slice(0, 2000) ?? ""}
         timezone={viewer.timezone}
       />

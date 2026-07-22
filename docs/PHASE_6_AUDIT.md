@@ -7,7 +7,7 @@
 - Foreground browser geolocation, approximately one-minute Journey Mode route refreshes, Stop control, and denied-permission handling.
 - Google traffic-aware Compute Routes when configured, plus leave-by time, user travel buffer, predicted arrival, delay, freshness, and accuracy/source labels.
 - Explicit approval before sharing a lateness ETA; participant content contains status and ETA only.
-- Profile Demo data toggle and travel buffer.
+- Travel buffer configuration. The former Profile Demo data toggle has since been removed from hosted settings.
 - AI-created destination extraction and database persistence.
 - Preview confirmation now changes the demo Planner instead of returning a success message without writing the session schedule.
 - Single-query Phase 0–6 Supabase SQL Editor installer and final GitHub/Vercel/Supabase setup guide.

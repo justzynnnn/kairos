@@ -1,13 +1,13 @@
 # Kairos final hackathon setup
 
-Use this checklist in order. The fastest path is: **GitHub → Vercel import → link Supabase → run one SQL file → add server variables → redeploy → enable Demo data.**
+Use this checklist in order. The fastest path is: **GitHub → Vercel import → link Supabase → run one SQL file → add server variables → redeploy.**
 
 ## What you need
 
 - Private GitHub repository: `https://github.com/justzynnnn/kairos`.
 - Your existing Supabase project.
 - A Vercel account connected to the same GitHub account.
-- Your own OpenAI Platform key. Codex does not create or copy it.
+- An optional Gemini API key for the explicit-consent cloud fallback.
 - Optional for live Journey Mode: a Google Maps Platform server key with **Places API (New)** and **Routes API** enabled. Without it, the video can use the clearly labeled seeded demo route.
 
 ## 1. Import GitHub into Vercel
@@ -60,7 +60,7 @@ If Marketplace cannot attach the existing project, add the same three variables 
 
 ### If you already ran an older Kairos `schema.sql`
 
-Run only the newer ordered migration files you have not already applied, through `supabase/migrations/202607220011_contextual_repair_ios.sql`. Do not repeatedly paste the full combined schema over a hand-edited live project.
+Run only the newer ordered migration files you have not already applied, through `supabase/migrations/202607230014_mobile_diagnostics.sql`. Do not repeatedly paste the full combined schema over a hand-edited live project.
 
 ## 4. Add Vercel environment variables
 
@@ -69,9 +69,8 @@ Open **Vercel → Kairos → Settings → Environment Variables**. Add these to 
 | Variable | Required | Value |
 |---|---:|---|
 | `NEXT_PUBLIC_APP_URL` | Yes | Your exact production URL, e.g. `https://kairos.vercel.app` |
-| `OPENAI_API_KEY` | For real AI/voice | Your own server-side OpenAI Platform key |
-| `OPENAI_SCHEDULING_MODEL` | Recommended | `gpt-5.6-sol` |
-| `OPENAI_TRANSCRIPTION_MODEL` | Recommended | `gpt-4o-transcribe` |
+| `GEMINI_API_KEY` | Optional fallback | Your server-side Gemini key |
+| `GEMINI_FALLBACK_MODEL` | Recommended | `gemini-3.5-flash-lite` |
 | `CRON_SECRET` | Yes | A random value of at least 16 characters |
 | `GOOGLE_MAPS_API_KEY` | For live routing | Your restricted server-side Google Maps key |
 | `KAIROS_ALLOW_PREVIEW` | Optional | Set to `1` only to deploy the seeded preview intentionally. Without Supabase variables, a deployment returns 503 instead of serving one shared unauthenticated identity. |
@@ -87,15 +86,14 @@ The Supabase variables in step 2 must also be present. Do not add quotes around 
 5. For Vercel previews, add the preview wildcard shown in Supabase's redirect-URL guidance for your Vercel team/account slug.
 6. Keep Email/Password enabled. For a controlled hackathon rehearsal, you may temporarily disable email confirmation, then restore it before public use.
 
-## 6. Prepare the one-click demo
+## 6. Prepare test accounts
 
 1. Open the deployed app and register/sign in.
-2. Go to **Profile → Your controls**.
-3. Turn on **Demo data**. This seeds only rows marked as Kairos demo records.
-4. Keep **Location access** on and set a travel buffer (15 minutes is the default).
-5. Return to Home and confirm the sample schedule appears.
-6. For the two-user meeting/Inbox demo, register two accounts of your own in separate browser sessions, then turn on Demo data for both.
-7. Add your OpenAI key before recording the AI scheduling/voice portion. Confirmed AI proposals are real calendar rows and appear in Planner.
+2. Create a few real schedule items for the account; Kairos no longer ships a Demo data control.
+3. Keep **Location access** on and set a travel buffer (15 minutes is the default).
+4. Return to Home and confirm the schedule appears.
+5. For the two-user meeting/Inbox demo, register two accounts of your own in separate browser sessions and connect them.
+6. Test Apple Intelligence and Apple Speech in the native app. If Gemini is configured, confirm the consent sheet appears before every cloud request.
 
 ## 7. Google Journey Mode (optional live path)
 
@@ -108,7 +106,7 @@ The Supabase variables in step 2 must also be present. Do not add quotes around 
 
 ## 8. Final five-minute rehearsal
 
-1. Open Profile and enable Demo data.
+1. Sign in to the prepared test account.
 2. Home: enter a scheduling command, review the proposal, and confirm it.
 3. Planner: verify the new item, switch Day/Week, and run **Fix my day**.
 4. Inbox: show a message or meeting coordination state.
@@ -121,7 +119,7 @@ The Supabase variables in step 2 must also be present. Do not add quotes around 
 - **Vercel says Supabase is missing:** verify all three Supabase variable names, then redeploy.
 - **Login returns to localhost:** fix Supabase Site URL and redirect URLs.
 - **Profile says apply latest schema:** run `supabase/schema.sql` on an empty project or the missing migration on an existing one.
-- **AI shows Limited fallback:** `OPENAI_API_KEY` is absent, invalid, or out of credits. Fix it in Vercel and redeploy.
+- **Cloud fallback is unavailable:** `GEMINI_API_KEY` is absent, invalid, or out of credits. Local and manual scheduling continue to work.
 - **Journey says Seeded demo:** the Google key/API/billing is unavailable; this is an intentional safe fallback.
 - **Installed PWA looks old:** close it fully, reopen once, or remove and add it to the Home Screen again.
 

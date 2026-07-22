@@ -1,13 +1,13 @@
 # Phase 1 Audit — Conversational Planning
 
 **Date:** 2026-07-18  
-**Status:** Local implementation pass; live OpenAI, hosted Supabase, and physical-iPhone promotion checks remain conditional on credentials and deployment.
+**Status:** Historical Phase 1 report. The OpenAI implementation described here was superseded by the on-device Apple Intelligence and Apple Speech architecture in July 2026.
 
 ## Implemented
 
 - Typed compound scheduling commands and iPhone-compatible record/stop controls.
 - Server-only GPT-5.6 Sol structured interpretation with schema validation and one retry.
-- Ephemeral GPT-4o Transcribe requests; audio is never written to storage or logs.
+- On-device Apple Speech; audio is never uploaded, written to storage, or logged.
 - Visibly labeled deterministic fallback limited to the approved class, gym, deadline, and preparation demo patterns.
 - Deterministic, 15-minute-grid proposal placement that does not move existing items or permit overlaps.
 - Editable whole-plan confirmation with visible assumptions and collapsed advanced constraints.
@@ -15,7 +15,7 @@
 - Preparation blocks that are movable/splittable but not shortenable or skippable by default.
 - Atomic Supabase confirmation RPC with schedule-version checks and transactional preference writes.
 - Explicit **Remember this** category preferences; no automatic learning.
-- Daily text/audio usage limits, 60-second recordings, 10 MB audio cap, and server-only secrets.
+- Daily cloud text limits and server-only fallback secrets.
 - Basic reminder minutes on confirmed items.
 
 Schedule repair, meeting coordination, messaging, external sends, calendar import, and background notifications remain outside Phase 1.
@@ -36,7 +36,7 @@ The E2E suite verifies all five areas, the complete compound fallback proposal, 
 
 ## Privacy and safety
 
-- OpenAI and Supabase service credentials are server-only.
+- Gemini fallback and Supabase service credentials are server-only.
 - AI output is parsed through a strict schema and then passed through deterministic schedule validation.
 - Invalid or overlapping proposals cannot reach confirmation.
 - Confirmations are all-or-nothing; the database RPC locks proposal/profile versions before writes.
@@ -46,7 +46,7 @@ The E2E suite verifies all five areas, the complete compound fallback proposal, 
 
 ## External checks still required
 
-1. Add the user's `OPENAI_API_KEY` and run typed and recorded live-provider commands.
+1. Test Apple Intelligence and Apple Speech on a compatible physical iPhone.
 2. Verify both the successful Structured Output response and the one-retry/fallback failure path against the funded API account.
 3. Apply both migrations to a disposable Supabase project, seed both users, and confirm persistence, refresh, remembered defaults, RLS isolation, stale proposal rejection, and transaction rollback.
 4. Deploy to HTTPS and verify microphone permission, record/stop, transcription, no retained audio, safe areas, and PWA reopening on a physical current iPhone.

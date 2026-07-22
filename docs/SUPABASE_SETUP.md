@@ -3,7 +3,7 @@
 This guide creates the hosted database, authentication system, Realtime backend, and demo accounts used by Kairos. Do not paste secret keys into chat, GitHub, screenshots, or any file except `.env.local` and the matching protected Vercel environment variables.
 
 
-> **Fastest path:** For a fresh project, skip the CLI migration workflow and follow `docs/QUICK_HOSTING.md`. Paste the complete `supabase/schema.sql` into the Supabase SQL Editor, connect the project through the Vercel Marketplace, redeploy, register, and enable **Profile → Demo data**.
+> **Fastest path:** For a fresh project, skip the CLI migration workflow and follow `docs/QUICK_HOSTING.md`. Paste the complete `supabase/schema.sql` into the Supabase SQL Editor, connect the project through the Vercel Marketplace, redeploy, and register a real test account.
 
 Official references: [Supabase local-development workflow](https://supabase.com/docs/guides/local-development/cli-workflows), [API key types](https://supabase.com/docs/guides/getting-started/api-keys), and [Auth redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls).
 
@@ -107,9 +107,7 @@ Do not use `supabase db reset --linked` on a project containing valuable data. T
 
 Kairos ships no seeded or shared accounts. Register through the app's **Create account** form; the `on_auth_user_created` trigger provisions each profile automatically.
 
-To populate a new account with sample items, open **Profile → Your controls** and turn on **Demo data**. That seeds only rows marked as Kairos sample data for the signed-in user, and turning it off removes exactly those rows. It never touches another account and never exposes another participant's private event titles.
-
-For a two-account rehearsal, register a second account of your own and enable **Demo data** on both. Kairos then creates the accepted connection, reciprocal free/busy permissions, and direct conversation between them.
+Kairos does not expose hosted demo-data controls. Create real test items through Planner. For a two-account rehearsal, register a second account of your own and connect the accounts through Inbox → People.
 
 ## Part 8 — Verify the setup
 

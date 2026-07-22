@@ -65,7 +65,7 @@ Mark these as **Sensitive** for Production and Preview:
 
 ```text
 SUPABASE_SERVICE_ROLE_KEY
-OPENAI_API_KEY
+GEMINI_API_KEY
 CRON_SECRET
 ```
 
@@ -78,8 +78,7 @@ GOOGLE_MAPS_API_KEY
 Optional model overrides:
 
 ```text
-OPENAI_SCHEDULING_MODEL=gpt-5.6-sol
-OPENAI_TRANSCRIPTION_MODEL=gpt-4o-transcribe
+GEMINI_FALLBACK_MODEL=gemini-3.5-flash-lite
 ```
 
 Generate `CRON_SECRET` as a random value of at least 16 characters. Do not prefix any server secret with `NEXT_PUBLIC_`.
@@ -121,7 +120,7 @@ Kairos includes `vercel.json`, so a production deployment registers `/api/jobs/m
 7. Create an external-recipient request and open its no-account booking link in a private Safari tab.
 8. Open Profile and test identity editing, location/automation controls, free/busy and category permissions, preference editing/deletion, private Activity, and immediate connection revocation.
 9. Verify all email/SMS delivery labels say **simulated**; Phase 5 still does not send real email or SMS.
-10. Test voice recording over HTTPS after `OPENAI_API_KEY` is configured.
+10. Test voice transcription in the bundled native app; voice never depends on a hosted model key.
 11. Tap **Share → Add to Home Screen**.
 12. Close and reopen the installed PWA and verify the session remains valid.
 
@@ -156,4 +155,4 @@ Environment variables can be managed with `vercel env add`, and Development vari
 - **Authentication returns to localhost:** update Supabase's Site URL and allowed redirects.
 - **Cron returns 401:** verify the Production `CRON_SECRET` and redeploy.
 - **Preview reads production data unexpectedly:** use a separate Supabase project or branch-specific Preview variables.
-- **OpenAI or routing key appears in browser code:** remove any `NEXT_PUBLIC_` prefix immediately and rotate the exposed key.
+- **Gemini or routing key appears in browser code:** remove any `NEXT_PUBLIC_` or `VITE_` prefix immediately and rotate the exposed key.

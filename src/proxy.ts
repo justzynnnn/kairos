@@ -11,8 +11,32 @@ const publicPaths = [
   "/api/booking",
   "/api/jobs/missed-starts",
   "/api/journey/background",
+  "/api/mobile",
 ];
+const mobileOrigins = new Set([
+  "capacitor://localhost",
+  "http://localhost",
+  "http://localhost:5173",
+]);
+
+function withMobileCors(response: NextResponse, request: NextRequest) {
+  const origin = request.headers.get("origin");
+  if (origin && mobileOrigins.has(origin)) {
+    response.headers.set("Access-Control-Allow-Origin", origin);
+    response.headers.set("Access-Control-Allow-Credentials", "false");
+    response.headers.set(
+      "Access-Control-Allow-Headers",
+      "Authorization, Content-Type",
+    );
+    response.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    response.headers.set("Vary", "Origin");
+  }
+  return response;
+}
 export async function proxy(request: NextRequest) {
+  const mobileRequest = request.nextUrl.pathname.startsWith("/api/mobile/");
+  if (mobileRequest && request.method === "OPTIONS")
+    return withMobileCors(new NextResponse(null, { status: 204 }), request);
   const c = getSupabasePublicConfig();
   if (!c) {
     // Without Supabase every request would share one unauthenticated preview identity,
@@ -58,7 +82,7 @@ export async function proxy(request: NextRequest) {
     u.pathname = "/";
     return NextResponse.redirect(u);
   }
-  return response;
+  return mobileRequest ? withMobileCors(response, request) : response;
 }
 export const config = {
   matcher: [

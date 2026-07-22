@@ -32,7 +32,12 @@ Official references: [Supabase SQL Editor and database overview](https://supabas
 5. Wait for the final result. It should contain:
 
 ```json
-{"ready": true, "latest_feature": "contextual_repair_ios", "attachment_bucket": true, "destination_columns": true}
+{
+  "ready": true,
+  "latest_feature": "contextual_repair_ios",
+  "attachment_bucket": true,
+  "destination_columns": true
+}
 ```
 
 Use this file on a fresh Supabase project. Do not rerun it repeatedly on a database that already has hand-edited policies; use the ordered migrations for later upgrades.
@@ -51,31 +56,28 @@ In Vercel **Project Settings → Environment Variables**, add:
 
 ```text
 NEXT_PUBLIC_APP_URL=https://your-kairos.vercel.app
-OPENAI_API_KEY=your OpenAI Platform key
+GEMINI_API_KEY=your optional server-only Gemini key
+GEMINI_FALLBACK_MODEL=gemini-3.5-flash-lite
 CRON_SECRET=a random value at least 16 characters long
 ```
 
-`OPENAI_API_KEY` uses your OpenAI API credits for scheduling interpretation and transcription. Keep it server-only. Add `GOOGLE_MAPS_API_KEY` for live Phase 6 Places and Routes. It is optional for the video because the fallback is visibly labeled **Seeded demo**.
+`GEMINI_API_KEY` enables only the consent-gated scheduling fallback. Keep it server-only. Voice transcription is handled on-device by Apple Speech. Add `GOOGLE_MAPS_API_KEY` for live Phase 6 Places and Routes.
 
 After saving variables, redeploy the project because environment-variable changes apply only to new deployments.
 
-## 6. Create the account and turn on Demo data
+## 6. Create the account and a real schedule
 
 1. Open the redeployed Kairos URL.
 2. Create an account or sign in.
-3. Open **Profile**.
-4. Under **Your controls**, turn on **Demo data**.
-5. Kairos creates a database-backed sample class, gym session, deadline, preparation, meeting, explicit preferences, and private activity for that signed-in user.
-6. Return to Home or Planner. The records persist through refreshes and Vercel restarts.
-7. Turning Demo data off removes only records marked as Kairos demo records; it does not delete the user's real items.
+3. Complete account settings and create schedule items in Planner.
+4. Return to Home or Planner. The records persist through refreshes and Vercel restarts.
 
 ## Optional two-account meeting rehearsal
 
 1. With email confirmation temporarily off, register two accounts of your own with distinct strong passwords.
-2. Turn on **Demo data** in both profiles.
-3. When the second account enables it, Kairos automatically creates their accepted connection, reciprocal free/busy permissions, and direct conversation.
-4. Use separate/private browser sessions to rehearse the meeting acceptance and final-confirmation flow.
-5. Never reuse a personal password for these accounts.
+2. Connect the accounts through Inbox → People.
+3. Use separate/private browser sessions to rehearse the meeting acceptance and final-confirmation flow.
+4. Never reuse a personal password for these accounts.
 
 ## Final checks
 

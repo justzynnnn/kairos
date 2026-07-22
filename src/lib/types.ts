@@ -37,6 +37,7 @@ export type CalendarItem = {
   reminderMinutes?: number | null;
   status: CalendarItemStatus;
   version: number;
+  localSyncStatus?: "pending" | "syncing" | "needs_review";
 };
 export type Preference = {
   id: string;

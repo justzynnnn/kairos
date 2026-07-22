@@ -11,12 +11,8 @@ import {
   deterministicInterpret,
   interpretFromHint,
 } from "@/lib/scheduling/fallback";
-import {
-  interpretWithOpenAI,
-  isOpenAIConfigured,
-} from "@/lib/scheduling/openai";
+import { isGeminiConfigured } from "@/lib/scheduling/gemini";
 import { interpretRequestSchema } from "@/lib/scheduling/schema";
-import { reserveAIUsage } from "@/lib/scheduling/usage";
 import {
   allowPersistentRequest,
   clientKey,
@@ -45,46 +41,18 @@ export async function POST(request: Request) {
     getCalendarItems(),
     getPreferences(),
   ]);
-  let provider: "apple-intelligence" | "openai" | "deterministic" =
-    "deterministic";
-  let providerNotice: string | null = null;
-  let intent = null;
+  let provider: "apple-intelligence" | "deterministic" = "deterministic";
+  const providerNotice: string | null = null;
+  let intent = body.data.nativeIntent ?? null;
+
+  if (intent) provider = "apple-intelligence";
 
   // The client only ever sends the few fields from commandHintSchema, already
   // validated above. Every timestamp and permission is still derived here, so a
   // forged hint can do no more than a typed command could.
-  if (body.data.hint) {
+  if (!intent && body.data.hint) {
     intent = interpretFromHint(body.data.hint, new Date());
     if (intent) provider = "apple-intelligence";
-  }
-
-  if (!intent && isOpenAIConfigured()) {
-    const allowed = await reserveAIUsage(viewer, "text", 1);
-    if (!allowed)
-      return NextResponse.json(
-        {
-          error:
-            "Your daily AI request limit has been reached. Try again tomorrow.",
-        },
-        { status: 429 },
-      );
-    try {
-      intent = await interpretWithOpenAI({
-        command: body.data.command,
-        clarification: body.data.clarification,
-        deadlinePreparation: body.data.deadlinePreparation,
-        viewer,
-        calendar,
-        preferences,
-      });
-      provider = "openai";
-    } catch {
-      providerNotice =
-        "OpenAI was unavailable or returned an invalid result. Kairos used the limited deterministic fallback.";
-    }
-  } else if (!intent) {
-    providerNotice =
-      "OpenAI is not configured. Kairos used the limited deterministic fallback.";
   }
 
   intent ??= deterministicInterpret(
@@ -100,6 +68,7 @@ export async function POST(request: Request) {
         "I can safely handle the approved class, gym, deadline, and preparation demo patterns in fallback mode. What exact item, day, start time, and duration should I use?",
       provider,
       providerNotice,
+      cloudFallbackAvailable: isGeminiConfigured(),
     });
   }
 
@@ -111,6 +80,7 @@ export async function POST(request: Request) {
       assumptions: intent.assumptions,
       provider,
       providerNotice,
+      cloudFallbackAvailable: isGeminiConfigured(),
     });
   }
 

@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertCircle,
   Check,
@@ -15,14 +15,23 @@ import type {
   ProposalItem,
 } from "@/lib/scheduling/schema";
 import { fromDateTimeLocal, toDateTimeLocal } from "@/lib/format";
-import { interpretOnDevice } from "@/lib/scheduling/native-llm";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import {
+  clearNativePlannerHistory,
+  interpretNatively,
+  nativeIntelligenceAvailable,
+  NativeSpeech,
+  prepareNativePlanner,
+  subscribeToTranscript,
+} from "@/lib/mobile/native";
+import { plannerResultToIntent } from "@/lib/mobile/contracts";
 type Proposal = {
   status: "proposal";
   proposalId: string;
   summary: string;
   assumptions: string[];
   items: ProposalItem[];
-  provider: "apple-intelligence" | "openai" | "deterministic";
+  provider: "apple-intelligence" | "gemini" | "deterministic";
   providerNotice: string | null;
   preview: boolean;
 };
@@ -31,13 +40,15 @@ type Follow = {
   followUpKind: "clarify" | "deadline_preparation";
   question: string;
   providerNotice?: string | null;
+  provider?: "apple-intelligence" | "gemini" | "deterministic";
+  cloudFallbackAvailable?: boolean;
 };
 export function AssistantWorkspace({
-  openAIConfigured,
+  cloudFallbackConfigured,
   initialCommand = "",
   timezone,
 }: {
-  openAIConfigured: boolean;
+  cloudFallbackConfigured: boolean;
   initialCommand?: string;
   timezone: string;
 }) {
@@ -53,28 +64,48 @@ export function AssistantWorkspace({
     [remember, setRemember] = useState(false),
     [busy, setBusy] = useState(false),
     [recording, setRecording] = useState(false),
+    [cloudConsentOpen, setCloudConsentOpen] = useState(false),
     [error, setError] = useState<string | null>(null),
     [success, setSuccess] = useState<string | null>(null);
-  const recorder = useRef<MediaRecorder | null>(null),
-    started = useRef(0),
-    timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const native = nativeIntelligenceAvailable();
+
+  useEffect(() => {
+    let active = true;
+    let handle: Awaited<ReturnType<typeof subscribeToTranscript>> = null;
+    void prepareNativePlanner();
+    void subscribeToTranscript((event) => {
+      if (!active) return;
+      setCommand(event.text);
+      if (event.isFinal) setRecording(false);
+    }).then((value) => {
+      handle = value;
+    });
+    return () => {
+      active = false;
+      void handle?.remove();
+    };
+  }, []);
+
   async function interpret(extra: Record<string, unknown> = {}) {
     setBusy(true);
     setError(null);
     setSuccess(null);
     try {
-      // Returns null off-device, when Apple Intelligence is unavailable, or
-      // when the reply does not validate, and the server then interprets as
-      // usual. A clarification reply carries context the hint cannot express.
-      const hint = extra.clarification
+      const nativeResult = extra.clarification
         ? null
-        : await interpretOnDevice(command);
+        : await interpretNatively({
+            command,
+            timezone,
+            contextVersion: 0,
+          });
       const r = await fetch("/api/assistant/interpret", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             command,
-            ...(hint ? { hint } : {}),
+            ...(nativeResult
+              ? { nativeIntent: plannerResultToIntent(nativeResult) }
+              : {}),
             ...extra,
           }),
         }),
@@ -90,6 +121,40 @@ export function AssistantWorkspace({
     } catch (e) {
       setError(
         e instanceof Error ? e.message : "Kairos could not interpret that.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function interpretInCloud() {
+    setCloudConsentOpen(false);
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/assistant/cloud-interpret", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          command,
+          ...(clarify ? { clarification: clarify } : {}),
+          consentGranted: true,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      if (data.status === "needs_input") {
+        setFollow(data);
+        setProposal(null);
+      } else {
+        setProposal(data);
+        setFollow(null);
+      }
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Cloud interpretation failed.",
       );
     } finally {
       setBusy(false);
@@ -128,89 +193,27 @@ export function AssistantWorkspace({
   }
   async function startRecording() {
     setError(null);
-    if (!openAIConfigured) {
-      setError(
-        "Voice transcription needs OPENAI_API_KEY. Typed fallback commands work now.",
-      );
-      return;
-    }
-    if (
-      !navigator.mediaDevices?.getUserMedia ||
-      typeof MediaRecorder === "undefined"
-    ) {
-      setError("Recording is unavailable in this browser.");
+    if (!native) {
+      setError("Private live voice transcription is available in the iOS app.");
       return;
     }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true }),
-        mime = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm"].find(
-          MediaRecorder.isTypeSupported,
-        ),
-        r = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined),
-        chunks: BlobPart[] = [];
-      r.ondataavailable = (e) => {
-        if (e.data.size) chunks.push(e.data);
-      };
-      r.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        if (timer.current) clearTimeout(timer.current);
-        const form = new FormData(),
-          blob = new Blob(chunks, { type: r.mimeType || "audio/mp4" });
-        form.append(
-          "audio",
-          blob,
-          r.mimeType.includes("webm") ? "command.webm" : "command.m4a",
-        );
-        form.append(
-          "durationSeconds",
-          String(
-            Math.max(
-              1,
-              Math.min(60, Math.ceil((Date.now() - started.current) / 1000)),
-            ),
-          ),
-        );
-        setBusy(true);
-        try {
-          const tr = await fetch("/api/assistant/transcribe", {
-              method: "POST",
-              body: form,
-            }),
-            td = await tr.json();
-          if (!tr.ok) throw new Error(td.error);
-          setCommand(td.transcript);
-          const ir = await fetch("/api/assistant/interpret", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ command: td.transcript }),
-            }),
-            id = await ir.json();
-          if (!ir.ok) throw new Error(id.error);
-          if (id.status === "needs_input") {
-            setFollow(id);
-            setProposal(null);
-          } else {
-            setProposal(id);
-            setFollow(null);
-          }
-        } catch (e) {
-          setError(e instanceof Error ? e.message : "Voice failed.");
-        } finally {
-          setBusy(false);
-        }
-      };
-      recorder.current = r;
-      started.current = Date.now();
-      r.start();
+      await NativeSpeech.start();
       setRecording(true);
-      timer.current = setTimeout(stopRecording, 60000);
-    } catch {
-      setError("Microphone permission was denied. No audio was saved.");
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "On-device transcription could not start.",
+      );
     }
   }
-  function stopRecording() {
-    if (recorder.current?.state === "recording") recorder.current.stop();
-    setRecording(false);
+  async function stopRecording() {
+    try {
+      await NativeSpeech.stop();
+    } finally {
+      setRecording(false);
+    }
   }
   return (
     <div className="space-y-5">
@@ -256,7 +259,9 @@ export function AssistantWorkspace({
           </p>
           <div className="flex gap-2">
             <button
-              onClick={recording ? stopRecording : startRecording}
+              onClick={() =>
+                void (recording ? stopRecording() : startRecording())
+              }
               disabled={busy}
               className={`inline-flex min-h-11 items-center gap-2 rounded-xl border px-4 text-sm font-semibold ${recording ? "border-[var(--error)] text-[var(--error)]" : "border-[var(--outline)] text-[var(--navy)]"}`}
             >
@@ -281,10 +286,10 @@ export function AssistantWorkspace({
             </button>
           </div>
         </div>
-        {!openAIConfigured && (
+        {!native && (
           <p className="mt-4 rounded-xl bg-[var(--gold-soft)] px-4 py-3 text-sm text-[var(--gold-deep)]">
-            <strong>Limited fallback active.</strong> Add your OpenAI API key
-            for broad interpretation and voice.
+            <strong>Typed planning is active.</strong> Private live voice and
+            Apple Intelligence are available in the iOS app.
           </p>
         )}
       </section>
@@ -312,6 +317,17 @@ export function AssistantWorkspace({
           <h2 className="font-display mt-2 text-xl font-semibold text-[var(--navy)]">
             {follow.question}
           </h2>
+          {follow.provider === "deterministic" &&
+            follow.cloudFallbackAvailable &&
+            cloudFallbackConfigured && (
+              <button
+                type="button"
+                onClick={() => setCloudConsentOpen(true)}
+                className="btn btn-outline mt-4 min-h-11 px-4"
+              >
+                Ask Gemini with filtered context
+              </button>
+            )}
           {follow.followUpKind === "deadline_preparation" ? (
             <div className="mt-5 grid gap-4 sm:grid-cols-3">
               <label className="grid gap-2 text-sm font-semibold">
@@ -415,8 +431,8 @@ export function AssistantWorkspace({
               <span className="rounded-full bg-[var(--gold-soft)] px-3 py-1 text-xs font-bold text-[var(--gold-deep)]">
                 {proposal.provider === "apple-intelligence"
                   ? "Interpreted on device"
-                  : proposal.provider === "openai"
-                    ? "OpenAI interpreted"
+                  : proposal.provider === "gemini"
+                    ? "Gemini fallback"
                     : "Limited fallback"}
               </span>
             </div>
@@ -623,6 +639,24 @@ export function AssistantWorkspace({
           </footer>
         </section>
       )}
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => void clearNativePlannerHistory()}
+          className="text-xs font-semibold text-[var(--muted)]"
+        >
+          Clear on-device assistant history
+        </button>
+      </div>
+      <ConfirmDialog
+        open={cloudConsentOpen}
+        title="Send a filtered request to Gemini?"
+        description="Kairos will send this command, relevant free/busy times, active hours, and minimum preferences. Unrelated titles become “Busy.” Audio, locations, messages, contacts, files, and the rest of your schedule are never sent."
+        confirmLabel="Send filtered request"
+        busy={busy}
+        onCancel={() => setCloudConsentOpen(false)}
+        onConfirm={() => void interpretInCloud()}
+      />
     </div>
   );
 }

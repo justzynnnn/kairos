@@ -18,6 +18,8 @@
 		A10000000000000000000001 /* KairosBridgeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000003 /* KairosBridgeViewController.swift */; };
 		A10000000000000000000002 /* KairosTripMonitorPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000004 /* KairosTripMonitorPlugin.swift */; };
 		A10000000000000000000005 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000006 /* PrivacyInfo.xcprivacy */; };
+		A10000000000000000000007 /* KairosIntelligencePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000008 /* KairosIntelligencePlugin.swift */; };
+		A10000000000000000000009 /* KairosSecureStorePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000000A /* KairosSecureStorePlugin.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -34,6 +36,8 @@
 		A10000000000000000000003 /* KairosBridgeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KairosBridgeViewController.swift; sourceTree = "<group>"; };
 		A10000000000000000000004 /* KairosTripMonitorPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KairosTripMonitorPlugin.swift; sourceTree = "<group>"; };
 		A10000000000000000000006 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		A10000000000000000000008 /* KairosIntelligencePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KairosIntelligencePlugin.swift; sourceTree = "<group>"; };
+		A1000000000000000000000A /* KairosSecureStorePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KairosSecureStorePlugin.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -72,6 +76,8 @@
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				A10000000000000000000003 /* KairosBridgeViewController.swift */,
 				A10000000000000000000004 /* KairosTripMonitorPlugin.swift */,
+				A10000000000000000000008 /* KairosIntelligencePlugin.swift */,
+				A1000000000000000000000A /* KairosSecureStorePlugin.swift */,
 				A10000000000000000000006 /* PrivacyInfo.xcprivacy */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
@@ -168,6 +174,8 @@
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				A10000000000000000000001 /* KairosBridgeViewController.swift in Sources */,
 				A10000000000000000000002 /* KairosTripMonitorPlugin.swift in Sources */,
+				A10000000000000000000007 /* KairosIntelligencePlugin.swift in Sources */,
+				A10000000000000000000009 /* KairosSecureStorePlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

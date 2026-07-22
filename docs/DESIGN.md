@@ -15,7 +15,7 @@ The connected Stitch project **Kairos AI Assistant** (`projects/3624325328100356
 - Home preserves the approved inline composer interaction: submitting a command opens its compact proposal on Home rather than redirecting to the full AI workspace. The AI navigation item remains available for advanced editing.
 - Compound proposals use editable stacked cards on mobile instead of a compressed calendar overlay so every assumption and constraint remains accessible.
 - Advanced constraint controls are collapsed by default to preserve Stitch's lightweight confirmation direction.
-- OpenAI and deterministic fallback results are visibly labeled; static Stitch screens did not need a provider-failure state.
+- Apple Intelligence, consent-gated Gemini, and deterministic results are visibly labeled; unavailable native capability never masquerades as a successful AI response.
 - Welcome uses Supabase authentication rather than deferred calendar import. Inbox remains an honest empty state until Phase 3.
 
 Major changes to navigation, page structure, primary colors, typography, or core interactions still require approval.
@@ -61,8 +61,7 @@ Major changes to navigation, page structure, primary colors, typography, or core
 
 ## SQL Editor hosting refinement
 
-- Hosted **Demo data** is exposed as one additional switch inside the existing Profile **Your controls** card. It uses the same toggle, spacing, and privacy language as location and automation settings, so navigation and page hierarchy remain unchanged.
-- Local preview clearly shows Demo data as always active and disables the switch. Hosted accounts can add or remove only database rows marked as Kairos sample data.
+- Hosted settings never expose development seeds or demo-data controls. Local preview fixtures remain isolated to development and test infrastructure.
 
 ## Phase 6 comparison and intentional differences
 

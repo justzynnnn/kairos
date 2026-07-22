@@ -8,12 +8,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "format": "prettier --write src tests e2e next.config.ts playwright.config.ts",
-    "format:check": "prettier --check src tests e2e next.config.ts playwright.config.ts",
+    "format": "prettier --write src mobile-src tests e2e next.config.ts playwright.config.ts capacitor.config.ts vite.mobile.config.ts",
+    "format:check": "prettier --check src mobile-src tests e2e next.config.ts playwright.config.ts capacitor.config.ts vite.mobile.config.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "mobile:sync": "cap sync ios",
+    "mobile:build": "vite build --config vite.mobile.config.ts",
+    "mobile:sync": "pnpm mobile:build && cap sync ios",
     "mobile:open": "cap open ios",
     "audit:phase1": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "audit:phase2": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm test:e2e",
@@ -25,12 +26,10 @@
   "dependencies": {
     "@capacitor/core": "8.4.2",
     "@capacitor/ios": "8.4.2",
-    "@capacitor/local-llm": "^1.0.0",
     "@supabase/ssr": "0.12.3",
     "@supabase/supabase-js": "2.110.7",
     "lucide-react": "1.25.0",
     "next": "16.2.10",
-    "openai": "6.48.0",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "zod": "4.4.3"
@@ -53,6 +52,7 @@
     "prettier": "3.6.2",
     "tailwindcss": "4.3.3",
     "typescript": "6.0.3",
+    "vite": "8.1.5",
     "vitest": "4.1.10"
   }
 }

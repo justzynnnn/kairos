@@ -6,9 +6,9 @@ import { useState } from "react";
 import { ArrowRight, Sparkles } from "lucide-react";
 
 export function HomeAssistantComposer({
-  openAIConfigured,
+  cloudFallbackConfigured,
 }: {
-  openAIConfigured: boolean;
+  cloudFallbackConfigured: boolean;
 }) {
   const router = useRouter();
   const [command, setCommand] = useState("");
@@ -51,10 +51,10 @@ export function HomeAssistantComposer({
           <ArrowRight className="size-4" />
         </button>
       </div>
-      {!openAIConfigured && (
+      {!cloudFallbackConfigured && (
         <small>
-          Limited typed interpretation is active until an OpenAI key is
-          configured.
+          On-device planning is available in the iOS app. Typed deterministic
+          planning remains available here.
         </small>
       )}
     </section>
