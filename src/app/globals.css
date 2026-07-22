@@ -1136,6 +1136,10 @@ a {
   gap: 1rem;
   grid-template-columns: minmax(0, 1fr) 18rem;
 }
+.home-support-stack {
+  display: grid;
+  gap: 1rem;
+}
 .agenda-section {
   background: var(--surface);
   border: 1px solid var(--outline-soft);
@@ -1162,6 +1166,50 @@ a {
   color: var(--muted);
   font-size: 0.7rem;
   margin-top: 0.2rem;
+}
+.activity-heatmap {
+  overflow: hidden;
+}
+.activity-streak {
+  align-items: center;
+  background: var(--cyan-soft);
+  border-radius: 0.8rem;
+  color: var(--cyan-deep);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+  padding: 0.65rem 0.75rem;
+}
+.activity-streak strong {
+  color: var(--navy);
+  font-family: var(--font-montserrat), Montserrat, system-ui, sans-serif;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+.activity-streak span {
+  color: var(--navy);
+  font-size: 0.75rem;
+  font-weight: 750;
+}
+.activity-streak p {
+  color: var(--muted);
+  flex-basis: 100%;
+  font-size: 0.7rem;
+  margin: 0.1rem 0 0;
+}
+.activity-heatmap-compact .p-5,
+.activity-heatmap-compact header {
+  padding: 1rem;
+}
+.activity-heatmap-compact h2 {
+  font-size: 1rem;
+}
+.activity-heatmap-compact header > div > p:last-child {
+  font-size: 0.72rem;
+}
+.activity-heatmap-compact .activity-streak {
+  margin-bottom: 0.75rem;
 }
 .schedule-item {
   background: var(--surface);
@@ -1214,6 +1262,47 @@ a {
 .day-calendar > header {
   border-bottom: 1px solid var(--outline-soft);
   padding: 1rem 1.25rem;
+}
+.planner-time-guide {
+  align-items: center;
+  background: var(--surface-low);
+  border-bottom: 1px solid var(--outline-soft);
+  display: flex;
+  gap: 1rem;
+  min-height: 3.25rem;
+  overflow-x: auto;
+  padding: 0.55rem 1.25rem;
+}
+.planner-time-guide-label {
+  color: var(--muted);
+  flex: 0 0 auto;
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.planner-time-guide ol {
+  display: flex;
+  flex: 1;
+  justify-content: space-between;
+  list-style: none;
+  margin: 0;
+  min-width: 38rem;
+  padding: 0;
+}
+.planner-time-guide li {
+  color: var(--muted);
+  font-size: 0.7rem;
+  position: relative;
+}
+.planner-time-guide li::after {
+  background: var(--outline);
+  content: "";
+  height: 0.5rem;
+  left: 50%;
+  position: absolute;
+  top: 1.2rem;
+  width: 1px;
 }
 .day-agenda {
   display: grid;

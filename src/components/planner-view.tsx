@@ -13,6 +13,14 @@ import { formatTime, localDateKey } from "@/lib/format";
 import type { CalendarItem } from "@/lib/types";
 
 type PlannerViewMode = "day" | "week";
+const timeGuideHours = [6, 8, 10, 12, 14, 16, 18, 20, 22];
+
+function timeGuideLabel(hour: number) {
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(2026, 0, 1, hour)));
+}
 
 function validDateKey(value: string | null) {
   return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
@@ -223,6 +231,23 @@ export function PlannerView({
               <span>{formatTime(new Date().toISOString(), timezone)}</span>
             </div>
           )}
+          <div
+            className="planner-time-guide"
+            aria-label="Hourly time guide. Scheduled items are listed in chronological order."
+            data-testid="planner-time-guide"
+            tabIndex={0}
+          >
+            <span className="planner-time-guide-label">Time guide</span>
+            <ol>
+              {timeGuideHours.map((hour) => (
+                <li key={hour}>
+                  <time dateTime={`${String(hour).padStart(2, "0")}:00`}>
+                    {timeGuideLabel(hour)}
+                  </time>
+                </li>
+              ))}
+            </ol>
+          </div>
           <div className="day-agenda">
             {visible.length ? (
               visible

@@ -5,7 +5,7 @@ test.beforeEach(async ({ page }) => {
   await page.request.post("/api/demo/reset");
 });
 
-test("healthy Home emphasizes action rather than activity history", async ({
+test("healthy Home keeps activity history as a supporting consistency panel", async ({
   page,
 }) => {
   await page.route("**/api/day/start", async (route) =>
@@ -27,8 +27,9 @@ test("healthy Home emphasizes action rather than activity history", async ({
     page.getByRole("heading", { name: "Today's agenda" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("region", { name: "Your protected-time rhythm" }),
-  ).toHaveCount(0);
+    page.getByRole("region", { name: "Your activity rhythm" }),
+  ).toBeVisible();
+  await expect(page.getByText(/day streak/)).toBeVisible();
 });
 
 test("opening a chat navigates to a dedicated conversation URL", async ({

@@ -110,7 +110,8 @@ describe("Phase 4 messaging and file boundaries", () => {
     expect(source).toContain("<DayGuardian");
     expect(source).toContain("Next up");
     expect(source).toContain("Today&apos;s agenda");
-    expect(source).not.toContain("ActivityHeatmap");
+    expect(source).toContain("ActivityHeatmap");
+    expect(source).toContain("home-support-stack");
   });
 });
 

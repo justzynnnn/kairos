@@ -1,5 +1,5 @@
 import { LockKeyhole, TrendingUp } from "lucide-react";
-import type { ActivityDay } from "@/lib/activity";
+import { currentActivityStreak, type ActivityDay } from "@/lib/activity-utils";
 const colors = [
   "bg-[var(--surface-low)]",
   "bg-[#d8f1f7]",
@@ -10,25 +10,35 @@ const colors = [
 export function ActivityHeatmap({
   days,
   preview,
+  compact = false,
 }: {
   days: ActivityDay[];
   preview: boolean;
+  compact?: boolean;
 }) {
   const active = days.filter((day) => day.level > 0).length,
-    total = days.reduce((sum, day) => sum + day.count, 0);
+    total = days.reduce((sum, day) => sum + day.count, 0),
+    streak = currentActivityStreak(days);
   return (
-    <section className="card overflow-hidden" aria-labelledby="activity-title">
+    <section
+      className={`card activity-heatmap ${compact ? "activity-heatmap-compact" : ""}`}
+      aria-labelledby="activity-title"
+    >
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--outline)] p-5">
         <div>
-          <p className="eyebrow">Private activity</p>
+          <p className="eyebrow">
+            {compact ? "Private consistency" : "Private activity"}
+          </p>
           <h2
             id="activity-title"
             className="font-display mt-1 text-xl font-semibold text-[var(--navy)]"
           >
-            Your protected-time rhythm
+            {compact ? "Your activity rhythm" : "Your protected-time rhythm"}
           </h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            A GitHub-style view of scheduling actions over the last 12 weeks.
+            {compact
+              ? "A private view of the last 12 weeks."
+              : "A GitHub-style view of scheduling actions over the last 12 weeks."}
           </p>
         </div>
         <span className="inline-flex items-center gap-1 rounded-full bg-[var(--cyan-soft)] px-3 py-1.5 text-xs font-bold text-[var(--cyan-deep)]">
@@ -37,6 +47,19 @@ export function ActivityHeatmap({
         </span>
       </header>
       <div className="p-5">
+        <div
+          className="activity-streak"
+          aria-label={`${streak} day activity streak`}
+        >
+          <TrendingUp className="size-4" aria-hidden />
+          <strong>{streak}</strong>
+          <span>day streak</span>
+          <p>
+            {streak
+              ? "Keep your momentum going today."
+              : "Complete or protect time today to start a streak."}
+          </p>
+        </div>
         <div className="overflow-x-auto pb-2">
           <div
             className="grid w-max grid-flow-col grid-rows-7 gap-1"
@@ -47,7 +70,6 @@ export function ActivityHeatmap({
               <span
                 key={day.date}
                 title={`${day.date}: ${day.count} scheduling action${day.count === 1 ? "" : "s"}`}
-                aria-label={`${day.date}: ${day.count} actions`}
                 className={`size-3 rounded-[3px] border border-black/5 ${colors[day.level]}`}
               />
             ))}

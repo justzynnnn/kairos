@@ -45,7 +45,7 @@ function seedActivity(): ActivityEvent[] {
     score: 1 + (index % 4),
     sourceKey: `seed:${index}`,
     createdAt: new Date(
-      Date.now() - (index * 2 + 1) * 24 * 60 * 60_000,
+      Date.now() - (index < 4 ? index : index * 2) * 24 * 60 * 60_000,
     ).toISOString(),
   }));
 }

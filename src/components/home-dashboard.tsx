@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AlertTriangle, ArrowRight, Clock3, ShieldCheck } from "lucide-react";
 import { CalendarItemCard } from "@/components/calendar-item-card";
+import { ActivityHeatmap } from "@/components/activity-heatmap";
 import { DayGuardian } from "@/components/day-guardian";
 import { HomeAssistantComposer } from "@/components/home-assistant-composer";
 import {
@@ -10,6 +11,7 @@ import {
   isSameLocalDay,
 } from "@/lib/format";
 import type { CalendarItem, Viewer } from "@/lib/types";
+import type { ActivityDay } from "@/lib/activity-utils";
 
 function itemInstant(item: CalendarItem) {
   return item.startAt ?? item.dueAt ?? "9999-12-31";
@@ -19,10 +21,12 @@ export function HomeDashboard({
   viewer,
   items,
   openAIConfigured,
+  activityDays,
 }: {
   viewer: Viewer;
   items: CalendarItem[];
   openAIConfigured: boolean;
+  activityDays: ActivityDay[];
 }) {
   const now = new Date();
   const scheduled = items.filter((item) => item.status === "scheduled");
@@ -126,32 +130,39 @@ export function HomeDashboard({
             )}
           </div>
         </section>
-        <aside className="deadline-panel">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="size-5 text-[var(--gold-deep)]" />
-            <div>
-              <p className="eyebrow">Due soon</p>
-              <h2 className="section-title">Deadlines</h2>
+        <aside className="home-support-stack">
+          <ActivityHeatmap
+            days={activityDays}
+            preview={viewer.preview}
+            compact
+          />
+          <section className="deadline-panel">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="size-5 text-[var(--gold-deep)]" />
+              <div>
+                <p className="eyebrow">Due soon</p>
+                <h2 className="section-title">Deadlines</h2>
+              </div>
             </div>
-          </div>
-          <div className="mt-4 divide-y divide-[var(--outline-soft)]">
-            {deadlines.length ? (
-              deadlines.map((deadline) => (
-                <article key={deadline.id} className="py-3">
-                  <strong>{deadline.title}</strong>
-                  <p>
-                    {deadline.dueAt
-                      ? `${formatDate(deadline.dueAt, viewer.timezone)} · ${formatTime(deadline.dueAt, viewer.timezone)}`
-                      : "No due time"}
-                  </p>
-                </article>
-              ))
-            ) : (
-              <p className="py-4 text-sm text-[var(--muted)]">
-                No active deadlines.
-              </p>
-            )}
-          </div>
+            <div className="mt-4 divide-y divide-[var(--outline-soft)]">
+              {deadlines.length ? (
+                deadlines.map((deadline) => (
+                  <article key={deadline.id} className="py-3">
+                    <strong>{deadline.title}</strong>
+                    <p>
+                      {deadline.dueAt
+                        ? `${formatDate(deadline.dueAt, viewer.timezone)} · ${formatTime(deadline.dueAt, viewer.timezone)}`
+                        : "No due time"}
+                    </p>
+                  </article>
+                ))
+              ) : (
+                <p className="py-4 text-sm text-[var(--muted)]">
+                  No active deadlines.
+                </p>
+              )}
+            </div>
+          </section>
         </aside>
       </div>
     </div>

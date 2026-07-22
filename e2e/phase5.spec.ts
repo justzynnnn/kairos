@@ -19,6 +19,16 @@ test("Planner week view is URL-backed and navigable", async ({ page }) => {
   await expect(page).toHaveURL(/view=week/);
 });
 
+test("Planner day view provides an hourly time guide", async ({ page }) => {
+  await page.goto("/planner");
+  await page.waitForLoadState("networkidle");
+  const guide = page.getByTestId("planner-time-guide");
+  await expect(guide).toBeVisible();
+  await expect(guide).toContainText("6 AM");
+  await expect(guide).toContainText("12 PM");
+  await expect(guide).toContainText("10 PM");
+});
+
 test("account settings have explicit Save and Cancel behavior", async ({
   page,
 }) => {
