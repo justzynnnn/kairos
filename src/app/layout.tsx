@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import { NativeShell } from "@/components/native-shell";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
 
 const inter = localFont({
@@ -42,6 +43,7 @@ export default function RootLayout({
     >
       <body>
         {children}
+        <NativeShell />
         <ServiceWorkerRegister />
       </body>
     </html>

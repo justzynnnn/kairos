@@ -50,6 +50,15 @@ select,
 textarea {
   font: inherit;
 }
+/* Controls inherit their label, and .field-label is 0.75rem, so text entry
+   landed at 12px. iOS zooms the viewport whenever a focused control is under
+   16px, so pin entry to 16px. Doing it here rather than with user-scalable=no
+   keeps pinch-to-zoom available. */
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  font-size: 1rem;
+}
 button,
 a {
   -webkit-tap-highlight-color: transparent;
@@ -789,7 +798,9 @@ a {
   border: 1px solid var(--outline);
   border-radius: 0.7rem;
   color: var(--ink);
-  font-size: 0.875rem;
+  /* 16px, not 0.875rem: this class beats the element-level rule above on
+     specificity, and anything under 16px makes iOS zoom on focus. */
+  font-size: 1rem;
   font-weight: 450;
   min-height: 2.8rem;
   outline: none;
@@ -1506,12 +1517,18 @@ a {
   display: grid;
   min-height: 100dvh;
 }
+/* Auth sits outside the app shell, so it has no header to absorb the status bar
+   and Dynamic Island. With viewport-fit=cover the flat padding is smaller than
+   the insets, which clips the heading. */
 .auth-story {
   background: linear-gradient(145deg, var(--cyan-soft), var(--background));
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   padding: clamp(1.5rem, 5vw, 4.5rem);
+  padding-top: max(clamp(1.5rem, 5vw, 4.5rem), env(safe-area-inset-top));
+  padding-left: max(clamp(1.5rem, 5vw, 4.5rem), env(safe-area-inset-left));
+  padding-right: max(clamp(1.5rem, 5vw, 4.5rem), env(safe-area-inset-right));
 }
 .auth-story > div {
   margin-block: auto;
@@ -1523,6 +1540,9 @@ a {
   display: flex;
   justify-content: center;
   padding: clamp(1rem, 5vw, 4rem);
+  padding-bottom: max(clamp(1rem, 5vw, 4rem), env(safe-area-inset-bottom));
+  padding-left: max(clamp(1rem, 5vw, 4rem), env(safe-area-inset-left));
+  padding-right: max(clamp(1rem, 5vw, 4rem), env(safe-area-inset-right));
 }
 .password-field {
   align-items: center;
@@ -1724,4 +1744,28 @@ a {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Inside the Capacitor shell the document rubber-bands past its own edges and
+   long presses raise the iOS selection callout, both of which read as a web
+   page in a wrapper. Message and note text stays selectable so it can be
+   copied; only the app chrome opts out. Scoped to the native flag so the
+   browser build keeps standard web behavior. */
+html[data-native] {
+  overscroll-behavior: none;
+}
+html[data-native] body {
+  -webkit-touch-callout: none;
+}
+html[data-native]
+  :is(
+    button,
+    .nav-item,
+    .mobile-nav-item,
+    .eyebrow,
+    .page-title,
+    .page-description
+  ) {
+  -webkit-user-select: none;
+  user-select: none;
 }

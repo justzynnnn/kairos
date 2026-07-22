@@ -49,7 +49,7 @@ final class KairosTripMonitorPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationMana
         }
     }
 
-    @objc func requestPermissions(_ call: CAPPluginCall) {
+    @objc override func requestPermissions(_ call: CAPPluginCall) {
         permissionCall = call
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { [weak self] granted, _ in
             DispatchQueue.main.async {
