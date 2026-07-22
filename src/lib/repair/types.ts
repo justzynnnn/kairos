@@ -1,6 +1,6 @@
 import type { CalendarItem } from "@/lib/types";
 
-export type RepairTrigger = "fix_day" | "woke_late" | "running_behind" | "missed_start";
+export type RepairTrigger = "fix_day" | "woke_late" | "running_behind" | "missed_start" | "traffic";
 export type RepairOperationKind = "move" | "shorten" | "split" | "skip";
 export type RepairSegment = { startAt: string; endAt: string; durationMinutes: number };
 export type RepairOperation = {
@@ -38,8 +38,13 @@ export type RepairRequest = {
   now?: Date;
   activeStart?: string;
   activeEnd?: string;
+  travelBufferMinutes?: number;
+  blockedUntil?: string;
+  anchorItemId?: string;
+  allowProtected?: boolean;
+  requiresProtectedReview?: boolean;
+  contextual?: boolean;
 };
 export type RepairSolution =
   | { status: "proposal"; alternatives: RepairAlternative[] }
   | { status: "impossible"; reason: string; compromises: string[] };
-

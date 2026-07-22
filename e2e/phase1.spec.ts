@@ -53,14 +53,18 @@ test("mobile navigation keeps the Stitch pattern", async ({ page }, info) => {
   for (const label of ["Home", "Planner", "Kairos", "Inbox", "Profile"]) await expect(nav.getByText(label, { exact: true })).toBeVisible();
 });
 
-test("schedule repair stays on Home and requires whole-plan approval", async ({ page }) => {
+test("manual protected repair stays available without occupying Home", async ({ page }) => {
   await page.request.post("/api/demo/reset");
+  await page.route("**/api/day/start",async(route)=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({dayStarted:true,firstOpen:true,broken:false,incident:null})}));
   await page.goto("/");
+  await expect(page.getByRole("region",{name:"Schedule repair"})).toHaveCount(0);
+  await page.goto("/planner");
+  await page.getByText("Open manual schedule repair",{exact:true}).click();
   await page.getByRole("button", { name: "I woke up late" }).click();
   await expect(page.getByRole("tab", { name: /Recommended · least disruption/ })).toBeVisible();
   await expect(page.getByText(/Approval is atomic and rejected if your calendar changed/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Approve whole repair" })).toBeVisible();
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/planner$/);
 });
 
 test("repair confirmation is atomic and makes older proposals stale", async ({ page }, info) => {

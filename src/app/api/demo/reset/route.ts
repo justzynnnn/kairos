@@ -5,6 +5,7 @@ import { resetPreviewConversations } from "@/lib/conversations/preview-store";
 import { resetPreviewProfile } from "@/lib/profile/preview-store";
 import { isSupabaseConfigured } from "@/lib/env";
 import { getServerEnv } from "@/lib/server-env";
+import { resetPreviewRepairIncidents } from "@/lib/repair/incident-preview-store";
 
 export const runtime="nodejs";
 export async function POST(request:Request){
@@ -16,5 +17,6 @@ export async function POST(request:Request){
   resetPreviewMeetings();
   resetPreviewConversations();
   resetPreviewProfile();
+  resetPreviewRepairIncidents();
   return NextResponse.json({ok:true});
 }

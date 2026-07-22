@@ -52,7 +52,7 @@ If Marketplace cannot attach the existing project, add the same three variables 
 ```json
 {
   "ready": true,
-  "latest_feature": "phase6_live_eta",
+  "latest_feature": "contextual_repair_ios",
   "attachment_bucket": true,
   "destination_columns": true
 }
@@ -60,7 +60,7 @@ If Marketplace cannot attach the existing project, add the same three variables 
 
 ### If you already ran an older Kairos `schema.sql`
 
-Run only the newer ordered migration files you have not already applied. For the Phase 6 upgrade, run `supabase/migrations/202607180008_phase6_live_eta.sql`. Do not repeatedly paste the full combined schema over a hand-edited live project.
+Run only the newer ordered migration files you have not already applied, through `supabase/migrations/202607220011_contextual_repair_ios.sql`. Do not repeatedly paste the full combined schema over a hand-edited live project.
 
 ## 4. Add Vercel environment variables
 
@@ -103,7 +103,7 @@ The Supabase variables in step 2 must also be present. Do not add quotes around 
 2. Create a server key and restrict it to those two APIs.
 3. Add it to Vercel as `GOOGLE_MAPS_API_KEY`; never use a `NEXT_PUBLIC_` name.
 4. Redeploy.
-5. On iPhone Safari/PWA, open a Planner item, choose **Journey**, resolve the destination, then approve foreground location access.
+5. On iPhone Safari/PWA, open a Planner item, choose **Journey**, resolve the destination, then approve foreground location access. For native background monitoring, follow `docs/IOS_APP_SETUP.md`.
 6. If GPS or routing is unavailable during judging, choose **Use demo route**. Kairos labels it **Seeded demo**.
 
 ## 8. Final five-minute rehearsal

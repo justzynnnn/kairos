@@ -11,6 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "mobile:sync": "cap sync ios",
+    "mobile:open": "cap open ios",
     "audit:phase1": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "audit:phase2": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm test:e2e",
     "audit:phase3": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm test:e2e",
@@ -19,6 +21,8 @@
     "audit:phase6": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm test:e2e"
   },
   "dependencies": {
+    "@capacitor/core": "8.4.2",
+    "@capacitor/ios": "8.4.2",
     "@supabase/ssr": "0.12.3",
     "@supabase/supabase-js": "2.110.7",
     "lucide-react": "1.25.0",
@@ -29,6 +33,7 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.4.2",
     "@playwright/test": "1.61.1",
     "@tailwindcss/postcss": "4.3.3",
     "@testing-library/jest-dom": "6.9.1",

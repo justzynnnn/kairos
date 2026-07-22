@@ -13,7 +13,7 @@ Official references: [Next.js on Vercel](https://vercel.com/docs/frameworks/full
 2. From the Kairos project root, run:
 
 ```bash
-pnpm audit:phase5
+pnpm audit:phase6
 ```
 
 3. Confirm the audit passes before deploying.
@@ -115,7 +115,7 @@ Kairos includes `vercel.json`, so a production deployment registers `/api/jobs/m
 1. Open the deployment in iPhone Safari.
 2. Register or sign in.
 3. Test every bottom-navigation target and every visible action on Home, Planner, AI, Inbox, and Profile. In Planner, switch to **Week**, move to the next week, and return to Today.
-4. Test **I woke up late** and approve a repair.
+4. Verify healthy Home has no Repair card, then test a contextual incident or open **Planner → Open manual schedule repair**.
 5. In Inbox, send a meeting request from Justin to Chloe, accept it as Chloe, and apply Justin's final confirmation.
 6. Send a direct message and allowed attachment between the two accounts. Confirm a disallowed type and a file over 10 MB are rejected.
 7. Create an external-recipient request and open its no-account booking link in a private Safari tab.

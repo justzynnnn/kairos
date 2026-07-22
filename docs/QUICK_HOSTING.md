@@ -32,7 +32,7 @@ Official references: [Supabase SQL Editor and database overview](https://supabas
 5. Wait for the final result. It should contain:
 
 ```json
-{"ready": true, "latest_feature": "phase6_live_eta", "attachment_bucket": true, "destination_columns": true}
+{"ready": true, "latest_feature": "contextual_repair_ios", "attachment_bucket": true, "destination_columns": true}
 ```
 
 Use this file on a fresh Supabase project. Do not rerun it repeatedly on a database that already has hand-edited policies; use the ordered migrations for later upgrades.
@@ -80,6 +80,7 @@ After saving variables, redeploy the project because environment-variable change
 ## Final checks
 
 1. Test Home, Planner Week, AI, Inbox, and Profile on the HTTPS deployment.
-2. On iPhone Safari, choose **Share → Add to Home Screen**.
-3. Reopen the PWA and confirm the session and Week button work.
-4. If an older PWA is cached, close and reopen it once; the current service-worker cache is `kairos-v6`.
+2. On iPhone Safari, choose **Share → Add to Home Screen** and verify the foreground Journey fallback.
+3. For true background traffic monitoring, configure the native target using `docs/IOS_APP_SETUP.md`.
+4. Reopen the PWA and confirm the session and Week button work.
+5. If an older PWA is cached, close and reopen it once; the current service-worker cache is `kairos-v6`.

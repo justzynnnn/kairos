@@ -6,7 +6,7 @@ import type { MeetingCard, MeetingOption, MeetingRecord } from "@/lib/meetings/t
 import { AppError } from "@/lib/http";
 
 export const CHLOE_ID="22222222-2222-4222-8222-222222222222";
-export const chloeViewer:Viewer={id:CHLOE_ID,email:"chloe@kairos.app",fullName:"Chloe",username:"chloe",timezone:"Asia/Manila",activeStart:"07:00",activeEnd:"22:30",avatarUrl:null,preview:true,scheduleVersion:1};
+export const chloeViewer:Viewer={id:CHLOE_ID,email:"chloe@kairos.app",fullName:"Chloe",username:"chloe",timezone:"Asia/Manila",activeStart:"07:00",activeEnd:"22:30",travelBufferMinutes:15,avatarUrl:null,preview:true,scheduleVersion:1};
 type BookingMeta={expiresAt:string;revokedAt:string|null};
 type State={meetings:Map<string,MeetingRecord>;chloeCalendar:CalendarItem[];chloeVersion:number;bookingMeta:Map<string,BookingMeta>};
 const root=globalThis as typeof globalThis&{__kairosMeetingState?:State};

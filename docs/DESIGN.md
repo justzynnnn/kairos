@@ -47,7 +47,7 @@ Major changes to navigation, page structure, primary colors, typography, or core
 - Scheduling cards remain in Inbox and gain **Discuss this request**, which places a visible meeting context above the same composer rather than navigating to a separate chat screen.
 - Attachments appear as compact file chips inside message bubbles. File limits and short-lived access are stated below the composer; errors use the existing accessible error treatment.
 - Automated reminders, lateness notices, meeting transitions, and repair updates are visually identified as **Kairos · Automated**. Private system updates carry an explicit lock badge and are never styled as participant messages or approvals.
-- The requested GitHub-style activity heatmap is placed on Home directly below the optional schedule-repair card and above Today’s timeline. It uses graduated cyan-to-navy cells, stays horizontally scrollable on narrow screens, and is explicitly private. Preview history is labeled as seeded rather than represented as real behavior.
+- The requested GitHub-style activity heatmap is placed on Home below the contextual day-guardian slot and above Today’s timeline. Repair occupies that slot only for the latest unresolved incident. The heatmap uses graduated cyan-to-navy cells, stays horizontally scrollable on narrow screens, and is explicitly private. Preview history is labeled as seeded rather than represented as real behavior.
 - Group chat remains deferred, so this phase intentionally avoids conversation-list and group-member management screens that would increase density beyond the approved hackathon scope.
 
 ## Phase 5 comparison and intentional differences
@@ -68,7 +68,14 @@ Major changes to navigation, page structure, primary colors, typography, or core
 
 - Journey Mode is embedded progressively inside existing Planner item cards, so the Stitch navigation, typography, color system, and Planner hierarchy remain unchanged. The collapsed **Journey** action avoids increasing ordinary agenda density.
 - Destination search, live-location permission, routing freshness, denied-permission, provider-failure, and seeded-demo states extend the existing navy/cyan/gold status language. The seeded route is always visibly labeled and never impersonates live traffic.
-- Live updates are intentionally foreground-only and approximately once per minute because installed iPhone PWAs cannot be treated as reliable background geofencing services. A visible Stop control ends the watcher.
+- Web Journey updates remain foreground-only and approximately once per minute because installed iPhone PWAs cannot provide reliable background location. The native iPhone target adds opt-in background monitoring only during an active Journey, with the system location indicator and a visible Stop control.
 - Lateness sharing remains a separate destructive-color approval action. Participants receive only status and ETA; exact origin coordinates never appear in stored history or message content.
 - The user travel buffer is a compact numeric setting in the existing Profile identity card. No new route or navigation item was introduced.
 - The connected Stitch project does not contain a dedicated Journey screen, so the implementation reuses its established card, pill, spacing, touch-target, and progressive-disclosure patterns rather than inventing a major new page structure.
+
+## Contextual repair and native iPhone refinement
+
+- Home no longer carries a permanent repair workspace. The latest unresolved day-start or traffic incident appears in place with cause, affected tasks, Undo, Dismiss, and protected-option review; a healthy day has no repair card.
+- The detailed repair workspace remains available behind **Planner → Open manual schedule repair**, preserving deliberate protected-change review without normal-screen density.
+- The first authenticated open on any screen records the local day start once. Fixed commitments never move automatically, protected changes require approval, and flexible changes use only the item’s existing move, shorten, split, or skip permissions.
+- Native traffic permission is requested only after the user starts Journey. The iPhone bridge uses the same progressive card language and does not add a permanent monitoring destination to navigation.

@@ -1,5 +1,5 @@
 import {createServerClient} from "@supabase/ssr";import{NextResponse,type NextRequest}from"next/server";import{getSupabasePublicConfig}from"@/lib/env";// These carry their own credentials: a hashed one-time booking token or CRON_SECRET.
-const publicPaths=["/auth","/auth/callback","/offline","/manifest.webmanifest","/sw.js","/book","/api/booking","/api/jobs/missed-starts"];
+const publicPaths=["/auth","/auth/callback","/offline","/manifest.webmanifest","/sw.js","/book","/api/booking","/api/jobs/missed-starts","/api/journey/background"];
 export async function proxy(request:NextRequest){const c=getSupabasePublicConfig();if(!c){
   // Without Supabase every request would share one unauthenticated preview identity,
   // so a real deployment must fail closed instead of serving that publicly.

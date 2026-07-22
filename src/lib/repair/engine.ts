@@ -11,7 +11,7 @@ type Strategy = { id: string; label: string; extraDelay: number; forceSplit: boo
 function time(value: string | null) { return value ? new Date(value).getTime() : Number.NaN; }
 function iso(value: number) { return new Date(value).toISOString(); }
 function duration(item: CalendarItem) { return item.startAt && item.endAt ? Math.round((time(item.endAt) - time(item.startAt)) / MINUTE) : 0; }
-function overlaps(start: number, end: number, busy: Busy[]) { return busy.find((entry) => start < entry.end && end > entry.start); }
+function overlaps(start:number,end:number,busy:Busy[],location:string|null=null,travelBufferMinutes=0){const buffer=travelBufferMinutes*MINUTE;return busy.find((entry)=>{if(start<entry.end&&end>entry.start)return true;return Boolean(buffer&&location&&entry.location&&location!==entry.location&&start<entry.end+buffer&&end>entry.start-buffer);});}
 function sameDate(a: number, b: number, timezone: string) { const f=(v:number)=>new Intl.DateTimeFormat("en-CA",{timeZone:timezone,year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(v)); return f(a)===f(b); }
 function segment(start: number, minutes: number): RepairSegment { return { startAt: iso(start), endAt: iso(start + minutes * MINUTE), durationMinutes: minutes }; }
 function startOfSeedDay(items: CalendarItem[], now: number) { const starts=items.filter((item)=>item.startAt&&sameDate(time(item.startAt),now,item.timezone)).map((item)=>time(item.startAt)); return starts.length?Math.min(...starts):now; }
@@ -26,29 +26,31 @@ function deadlineFor(item: CalendarItem, items: CalendarItem[]) {
 }
 
 function affectedItems(items: CalendarItem[], request: RepairRequest, now: number) {
-  const timed=items.filter((item)=>item.status==="scheduled"&&item.startAt&&item.endAt&&item.flexibility==="flexible");
+  const timed=items.filter((item)=>item.status==="scheduled"&&item.startAt&&item.endAt&&(item.flexibility==="flexible"||request.allowProtected&&item.flexibility==="protected"));
   const seed=startOfSeedDay(items,now);
   if(request.trigger==="missed_start"){
     const missed=timed.filter((item)=>time(item.startAt)<now&&time(item.endAt)<=now);
     return missed.length?missed:[...timed].sort((a,b)=>time(a.startAt)-time(b.startAt)).slice(0,1);
   }
-  if(request.trigger==="running_behind"){
-    const remaining=timed.filter((item)=>time(item.endAt)>now);
-    return remaining.length?remaining:timed.filter((item)=>sameDate(time(item.startAt),seed,item.timezone));
+  if(request.trigger==="running_behind"||request.trigger==="traffic"){
+    const blockedUntil=request.blockedUntil?time(request.blockedUntil):now+request.delayMinutes*MINUTE;
+    const remaining=timed.filter((item)=>time(item.endAt)>now&&time(item.startAt)<blockedUntil);
+    return request.trigger==="traffic"?remaining:remaining.length?remaining:timed.filter((item)=>sameDate(time(item.startAt),seed,item.timezone));
   }
+  if(request.trigger==="woke_late")return timed.filter((item)=>sameDate(time(item.startAt),seed,item.timezone)&&(!request.contextual||time(item.startAt)<now));
   return timed.filter((item)=>sameDate(time(item.startAt),seed,item.timezone));
 }
 
-function freeSlot(from: number, to: number, minutes: number, busy: Busy[], preferLaterDay: boolean) {
+function freeSlot(from:number,to:number,minutes:number,busy:Busy[],preferLaterDay:boolean,location:string|null,travelBufferMinutes:number) {
   const candidates: number[]=[];
   for(let value=grid(from);value+minutes*MINUTE<=to;value+=GRID)candidates.push(value);
   if(preferLaterDay)candidates.sort((a,b)=>b-a);
-  return candidates.find((value)=>!overlaps(value,value+minutes*MINUTE,busy)) ?? null;
+  return candidates.find((value)=>!overlaps(value,value+minutes*MINUTE,busy,location,travelBufferMinutes)) ?? null;
 }
 
-function splitSlots(from:number,to:number,total:number,minChunk:number,busy:Busy[],preferLaterDay:boolean){
+function splitSlots(from:number,to:number,total:number,minChunk:number,busy:Busy[],preferLaterDay:boolean,location:string|null,travelBufferMinutes:number){
   const chunks:number[]=[];let remaining=total;
-  while(remaining>0){const target=Math.max(minChunk,Math.ceil(Math.min(remaining,Math.max(minChunk,total/2))/15)*15);const amount=Math.min(remaining,target);const found=freeSlot(from,to,amount,busy,preferLaterDay);if(found===null)return null;chunks.push(found,amount);busy.push({start:found,end:found+amount*MINUTE,itemId:"split-reservation",title:"Split reservation",location:null});remaining-=amount;}
+  while(remaining>0){const target=Math.max(minChunk,Math.ceil(Math.min(remaining,Math.max(minChunk,total/2))/15)*15);const amount=Math.min(remaining,target);const found=freeSlot(from,to,amount,busy,preferLaterDay,location,travelBufferMinutes);if(found===null)return null;chunks.push(found,amount);busy.push({start:found,end:found+amount*MINUTE,itemId:"split-reservation",title:"Split reservation",location});remaining-=amount;}
   for(let index=0;index<chunks.length;index+=2){const start=chunks[index],amount=chunks[index+1];const reservation=busy.findIndex((entry)=>entry.itemId==="split-reservation"&&entry.start===start&&entry.end===start+amount*MINUTE);if(reservation>=0)busy.splice(reservation,1);}
   return Array.from({length:chunks.length/2},(_,index)=>segment(chunks[index*2],chunks[index*2+1]));
 }
@@ -61,6 +63,7 @@ function applyStrategy(allItems: CalendarItem[], request: RepairRequest, strateg
   const busy:Busy[]=resulting.filter((item)=>item.startAt&&item.endAt&&item.status==="scheduled"&&!affectedIds.has(item.id)).map((item)=>({start:time(item.startAt),end:time(item.endAt),itemId:item.id,title:item.title,location:item.locationLabel}));
   const operations:RepairOperation[]=[];
   const revision=(request.revision??"").toLowerCase();
+  const travelBufferMinutes=request.travelBufferMinutes??0;
   const preferLaterDay=/tomorrow|later day|move.*later/.test(revision) || strategy.id==="later";
   const ordered=[...affected].sort((a,b)=>b.priority-a.priority||time(a.startAt)-time(b.startAt));
 
@@ -70,21 +73,31 @@ function applyStrategy(allItems: CalendarItem[], request: RepairRequest, strateg
     const earliest=Math.max(time(item.earliestStart)||originalStart, request.trigger==="missed_start"?now:originalStart,dependencyEnd);
     const deadline=deadlineFor(item,allItems);
     const latest=Math.min(time(item.latestEnd)||originalStart+HORIZON, deadline?.dueAt?time(deadline.dueAt):Number.POSITIVE_INFINITY, originalStart+HORIZON);
-    const desired=Math.max(earliest,originalStart+(request.delayMinutes+strategy.extraDelay)*MINUTE);
+    const blockedUntil=request.blockedUntil?time(request.blockedUntil):0;
+    const desired=Math.max(earliest,request.trigger==="traffic"||request.trigger==="running_behind"?blockedUntil:originalStart+(request.delayMinutes+strategy.extraDelay)*MINUTE);
     let planned:RepairSegment[]|null=null;
     let usedMinutes=originalMinutes;
     const keepToday=/keep.*today|today.*keep/.test(revision);
     const effectiveLatest=keepToday?Math.min(latest,new Date(item.startAt!).setHours(23,59,59,999)):latest;
 
-    if(strategy.forceSplit&&item.canSplit&&originalMinutes>=(item.minimumChunkMinutes??30)*2){
-      planned=splitSlots(desired,effectiveLatest,originalMinutes,item.minimumChunkMinutes??30,busy,preferLaterDay);
+    // A first-open wake check may land inside a flexible task. Preserve its
+    // original end when the remaining interval is an explicitly valid
+    // shortening (for example, an adjustable 08:00-08:30 shower at 08:15).
+    if(request.trigger==="woke_late"&&originalStart<now&&now<time(item.endAt)&&item.canShorten){
+      const resumed=grid(now),remaining=Math.round((time(item.endAt)-resumed)/MINUTE);
+      if(remaining>0&&remaining>=(item.minimumDurationMinutes??15)&&!overlaps(resumed,time(item.endAt),busy,item.locationLabel,travelBufferMinutes)){
+        usedMinutes=remaining;planned=[segment(resumed,remaining)];
+      }
     }
-    if(!planned){const found=freeSlot(desired,effectiveLatest,originalMinutes,busy,preferLaterDay);if(found!==null)planned=[segment(found,originalMinutes)];}
+    if(!planned&&strategy.forceSplit&&item.canSplit&&originalMinutes>=(item.minimumChunkMinutes??30)*2){
+      planned=splitSlots(desired,effectiveLatest,originalMinutes,item.minimumChunkMinutes??30,busy,preferLaterDay,item.locationLabel,travelBufferMinutes);
+    }
+    if(!planned){const found=freeSlot(desired,effectiveLatest,originalMinutes,busy,preferLaterDay,item.locationLabel,travelBufferMinutes);if(found!==null)planned=[segment(found,originalMinutes)];}
     if(!planned&&item.canShorten){
       usedMinutes=item.minimumDurationMinutes??Math.max(15,originalMinutes-30);
-      const found=freeSlot(desired,effectiveLatest,usedMinutes,busy,preferLaterDay);if(found!==null)planned=[segment(found,usedMinutes)];
+      const found=freeSlot(desired,effectiveLatest,usedMinutes,busy,preferLaterDay,item.locationLabel,travelBufferMinutes);if(found!==null)planned=[segment(found,usedMinutes)];
     }
-    if(!planned&&item.canSplit){planned=splitSlots(desired,effectiveLatest,originalMinutes,item.minimumChunkMinutes??30,busy,preferLaterDay);}
+    if(!planned&&item.canSplit){planned=splitSlots(desired,effectiveLatest,originalMinutes,item.minimumChunkMinutes??30,busy,preferLaterDay,item.locationLabel,travelBufferMinutes);}
     if(!planned&&item.canSkip&&!/don'?t skip|do not skip|keep/.test(revision)){planned=[];}
     if(planned===null)return null;
 
@@ -106,7 +119,7 @@ function applyStrategy(allItems: CalendarItem[], request: RepairRequest, strateg
   return {id:strategy.id,label:strategy.label,recommended:false,explanation,operations,score,resultingItems:resulting};
 }
 
-export function validateRepairAlternative(before: CalendarItem[], alternative: RepairAlternative) {
+export function validateRepairAlternative(before:CalendarItem[],alternative:RepairAlternative,travelBufferMinutes=0) {
   const prior=new Map(before.map((item)=>[item.id,item]));
   const timed=alternative.resultingItems.filter((item)=>item.status==="scheduled"&&item.startAt&&item.endAt).sort((a,b)=>time(a.startAt)-time(b.startAt));
   for(const item of timed){
@@ -119,16 +132,17 @@ export function validateRepairAlternative(before: CalendarItem[], alternative: R
     const deadline=deadlineFor(original??item,before);if(deadline?.dueAt&&time(item.endAt)>time(deadline.dueAt))throw new Error(`${item.title} extends past its deadline.`);
     for(const dependencyId of original?.dependencyIds??[]){const dependency=alternative.resultingItems.find((entry)=>entry.id===dependencyId);if(dependency?.endAt&&time(item.startAt)<time(dependency.endAt))throw new Error(`${item.title} starts before ${dependency.title} finishes.`);}
   }
-  for(let index=1;index<timed.length;index++)if(time(timed[index].startAt)<time(timed[index-1].endAt))throw new Error(`${timed[index].title} overlaps ${timed[index-1].title}.`);
+  for(let index=1;index<timed.length;index++){const previous=timed[index-1],current=timed[index],gap=time(current.startAt)-time(previous.endAt);if(gap<0)throw new Error(`${current.title} overlaps ${previous.title}.`);if(previous.locationLabel&&current.locationLabel&&previous.locationLabel!==current.locationLabel&&gap<travelBufferMinutes*MINUTE)throw new Error(`${current.title} does not preserve the travel buffer after ${previous.title}.`);}
   for(const operation of alternative.operations){const original=prior.get(operation.itemId)!;const total=operation.after.reduce((sum,part)=>sum+part.durationMinutes,0);if(operation.kind==="skip"&&!original.canSkip)throw new Error(`${original.title} cannot be skipped.`);if(operation.kind==="shorten"&&(!original.canShorten||total<(original.minimumDurationMinutes??duration(original))))throw new Error(`${original.title} cannot be shortened that far.`);if(operation.kind==="split"&&(!original.canSplit||operation.after.some((part)=>part.durationMinutes<(original.minimumChunkMinutes??15))||total!==duration(original)))throw new Error(`${original.title} has an invalid split.`);}
   return true;
 }
 
 export function buildRepairSolution(items: CalendarItem[], request: RepairRequest): RepairSolution {
+  if(request.requiresProtectedReview&&!request.allowProtected)return{status:"impossible",reason:"A protected item was affected, so Kairos left it unchanged and needs your approval before resolving the disruption.",compromises:["Review protected changes explicitly.","Adjust the protected item's permissions.","Repair the remaining flexible work manually."]};
   const now=(request.now??new Date()).getTime();
   const strategies:Strategy[]=[{id:"minimal",label:"Recommended · least disruption",extraDelay:0,forceSplit:false},{id:"later",label:"Later opening",extraDelay:60,forceSplit:false},{id:"split",label:"Preserve effort with smaller blocks",extraDelay:0,forceSplit:true}];
   const unique=new Map<string,RepairAlternative>();
-  for(const strategy of strategies){const result=applyStrategy(items,request,strategy,now);if(!result)continue;try{validateRepairAlternative(items,result);}catch{continue;}const signature=result.operations.map((op)=>`${op.itemId}:${op.kind}:${op.after.map((part)=>part.startAt).join(",")}`).join("|");if(!unique.has(signature))unique.set(signature,result);}
+  for(const strategy of strategies){const result=applyStrategy(items,request,strategy,now);if(!result)continue;try{validateRepairAlternative(items,result,request.travelBufferMinutes??0);}catch{continue;}const signature=result.operations.map((op)=>`${op.itemId}:${op.kind}:${op.after.map((part)=>part.startAt).join(",")}`).join("|");if(!unique.has(signature))unique.set(signature,result);}
   const alternatives=[...unique.values()].sort((a,b)=>compareScore(a.score,b.score)).slice(0,3);
   if(!alternatives.length)return{status:"impossible",reason:"No uncompromised repair fits inside the allowed windows while preserving fixed commitments and deadlines.",compromises:["Authorize shortening for an eligible flexible task.","Extend a flexible task's allowed window.","Explicitly mark a low-priority item optional."]};
   alternatives.forEach((alternative,index)=>alternative.recommended=index===0);

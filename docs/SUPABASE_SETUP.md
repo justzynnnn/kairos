@@ -130,7 +130,7 @@ For a two-account rehearsal, register a second account of your own and enable **
 15. Run:
 
 ```bash
-pnpm audit:phase5
+pnpm audit:phase6
 ```
 
 ## Troubleshooting checklist

@@ -12,7 +12,7 @@ export async function POST(request:Request){
   const parsed=repairRequestSchema.safeParse(await request.json().catch(()=>null));
   if(!parsed.success)return NextResponse.json({error:"Choose a valid repair trigger and delay between 15 minutes and 6 hours."},{status:400});
   const [viewer,calendar]=await Promise.all([getViewer(),getCalendarItems()]);
-  const solution=buildRepairSolution(calendar,{...parsed.data,activeStart:viewer.activeStart,activeEnd:viewer.activeEnd});
+  const solution=buildRepairSolution(calendar,{...parsed.data,activeStart:viewer.activeStart,activeEnd:viewer.activeEnd,travelBufferMinutes:viewer.travelBufferMinutes,allowProtected:true});
   if(solution.status==="impossible")return NextResponse.json(solution,{status:422});
   let proposalId=randomUUID();
   if(isSupabaseConfigured()){
