@@ -1,31 +1,300 @@
 import { randomUUID } from "node:crypto";
 import { CHLOE_ID, chloeViewer } from "@/lib/meetings/preview-store";
 import { DEMO_USER_ID, demoViewer } from "@/lib/demo-data";
-import type { AttachmentCard, ConversationMessage, ConversationView, MessageType } from "@/lib/conversations/types";
+import type {
+  AttachmentCard,
+  ConversationContact,
+  ConversationMessage,
+  ConversationView,
+  MessageType,
+} from "@/lib/conversations/types";
 import { AppError } from "@/lib/http";
 
-export const PREVIEW_CONVERSATION_ID="44444444-4444-4444-8444-444444444444";
-export const MAYA_CONVERSATION_ID="44444444-4444-4444-8444-444444444445";
-const MAYA_ID="33333333-3333-4333-8333-333333333333";
-type StoredMessage=Omit<ConversationMessage,"isMine"|"attachments">&{privateTo:string|null;clientNonce:string};
-type StoredAttachment=AttachmentCard&{conversationId:string;messageId:string;uploadedBy:string;bytes:Uint8Array};
-type State={messages:StoredMessage[];attachments:Map<string,StoredAttachment>;removed:Set<string>};
-const root=globalThis as typeof globalThis&{__kairosConversationState?:State};
-function ago(minutes:number){return new Date(Date.now()-minutes*60_000).toISOString();}
-function initial():State{return{removed:new Set(),attachments:new Map(),messages:[
-  {id:"55555555-5555-4555-8555-555555555551",conversationId:PREVIEW_CONVERSATION_ID,senderId:CHLOE_ID,senderName:"Chloe",senderKind:"user",type:"text",body:"The optimized time works for me. Want to keep 15 minutes before it for notes?",private:false,privateTo:null,relatedMeetingId:null,createdAt:ago(24),clientNonce:"65555555-5555-4555-8555-555555555551"},
-  {id:"55555555-5555-4555-8555-555555555552",conversationId:PREVIEW_CONVERSATION_ID,senderId:null,senderName:"Kairos",senderKind:"system",type:"system_reminder",body:"Paper Research starts in 30 minutes. This reminder is private to you.",private:true,privateTo:DEMO_USER_ID,relatedMeetingId:null,createdAt:ago(12),clientNonce:"65555555-5555-4555-8555-555555555552"},
-  {id:"55555555-5555-4555-8555-555555555553",conversationId:PREVIEW_CONVERSATION_ID,senderId:null,senderName:"Kairos",senderKind:"system",type:"system_lateness",body:"Gym Session may be running late. Share a status only if you choose to.",private:true,privateTo:DEMO_USER_ID,relatedMeetingId:null,createdAt:ago(4),clientNonce:"65555555-5555-4555-8555-555555555553"},
-]};}
-function state(){return root.__kairosConversationState??=initial();}
-export function resetPreviewConversations(){root.__kairosConversationState=initial();}
-function person(id:string){return id===CHLOE_ID?chloeViewer:id===MAYA_ID?{id:MAYA_ID,fullName:"Maya Chen",email:"maya@example.com"}:demoViewer;}
-function participants(conversationId:string){return conversationId===PREVIEW_CONVERSATION_ID?[DEMO_USER_ID,CHLOE_ID]:conversationId===MAYA_CONVERSATION_ID?[DEMO_USER_ID,MAYA_ID]:[];}
-function conversationIdFor(actorId:string,otherUserId:string){const pair=new Set([actorId,otherUserId]);if(pair.has(DEMO_USER_ID)&&pair.has(CHLOE_ID))return PREVIEW_CONVERSATION_ID;if(pair.has(DEMO_USER_ID)&&pair.has(MAYA_ID))return MAYA_CONVERSATION_ID;return null;}
-function allowed(actorId:string,conversationId:string){return participants(conversationId).includes(actorId)&&!state().removed.has(actorId);}
-export function removePreviewConversationMember(actorId:string){state().removed.add(actorId);}
-export function listPreviewConversation(actorId:string,otherUserId=actorId===DEMO_USER_ID?CHLOE_ID:DEMO_USER_ID):ConversationView|null{const conversationId=conversationIdFor(actorId,otherUserId);if(!conversationId||!allowed(actorId,conversationId))return null;const other=person(otherUserId),demoUser=actorId===CHLOE_ID?"chloe":"justin";const messages=state().messages.filter((message)=>message.conversationId===conversationId&&(!message.privateTo||message.privateTo===actorId)).sort((a,b)=>a.createdAt.localeCompare(b.createdAt)).map((message):ConversationMessage=>{const attachments=[...state().attachments.values()].filter((entry)=>entry.messageId===message.id).map((entry)=>({id:entry.id,name:entry.name,mimeType:entry.mimeType,sizeBytes:entry.sizeBytes,downloadPath:`${entry.downloadPath}?demoUser=${demoUser}`,previewable:entry.previewable}));return{...message,isMine:message.senderId===actorId,attachments};});return{id:conversationId,otherUser:{id:other.id,name:other.fullName,email:other.email},messages};}
-export function sendPreviewMessage(actorId:string,conversationId:string,body:string,clientNonce:string,relatedMeetingId:string|null=null){if(!allowed(actorId,conversationId))throw new AppError("Conversation access denied.");const clean=body.trim();if(!clean||clean.length>4000)throw new AppError("Enter a message under 4,000 characters.");const duplicate=state().messages.find((message)=>message.conversationId===conversationId&&message.clientNonce===clientNonce);if(duplicate)return duplicate.id;const sender=person(actorId),id=randomUUID();state().messages.push({id,conversationId,senderId:actorId,senderName:sender.fullName,senderKind:"user",type:"text",body:clean,private:false,privateTo:null,relatedMeetingId,createdAt:new Date().toISOString(),clientNonce});return id;}
-export function recordPreviewSystemMessage(type:Exclude<MessageType,"text">,body:string,key:string,options:{privateTo?:string|null;relatedMeetingId?:string|null}={}){const duplicate=state().messages.find((message)=>message.clientNonce===key);if(duplicate)return duplicate.id;const id=randomUUID();state().messages.push({id,conversationId:PREVIEW_CONVERSATION_ID,senderId:null,senderName:"Kairos",senderKind:"system",type,body,private:Boolean(options.privateTo),privateTo:options.privateTo??null,relatedMeetingId:options.relatedMeetingId??null,createdAt:new Date().toISOString(),clientNonce:key});return id;}
-export function addPreviewAttachment(actorId:string,conversationId:string,file:{name:string;mimeType:string;bytes:Uint8Array},body:string,clientNonce:string,relatedMeetingId:string|null){const messageId=sendPreviewMessage(actorId,conversationId,body||`Shared ${file.name}`,clientNonce,relatedMeetingId),id=randomUUID();state().attachments.set(id,{id,conversationId,messageId,uploadedBy:actorId,name:file.name,mimeType:file.mimeType,sizeBytes:file.bytes.byteLength,downloadPath:`/api/attachments/${id}/download`,previewable:file.mimeType.startsWith("image/")||file.mimeType==="application/pdf"||file.mimeType==="text/plain",bytes:file.bytes});return id;}
-export function getPreviewAttachment(actorId:string,id:string){const value=state().attachments.get(id);if(!value||!allowed(actorId,value.conversationId))return null;return value;}
+export const PREVIEW_CONVERSATION_ID = "44444444-4444-4444-8444-444444444444";
+export const MAYA_CONVERSATION_ID = "44444444-4444-4444-8444-444444444445";
+const MAYA_ID = "33333333-3333-4333-8333-333333333333";
+type StoredMessage = Omit<ConversationMessage, "isMine" | "attachments"> & {
+  privateTo: string | null;
+  clientNonce: string;
+};
+type StoredAttachment = AttachmentCard & {
+  conversationId: string;
+  messageId: string;
+  uploadedBy: string;
+  bytes: Uint8Array;
+};
+type State = {
+  messages: StoredMessage[];
+  attachments: Map<string, StoredAttachment>;
+  removed: Set<string>;
+};
+const root = globalThis as typeof globalThis & {
+  __kairosConversationState?: State;
+};
+function ago(minutes: number) {
+  return new Date(Date.now() - minutes * 60_000).toISOString();
+}
+function initial(): State {
+  return {
+    removed: new Set(),
+    attachments: new Map(),
+    messages: [
+      {
+        id: "55555555-5555-4555-8555-555555555551",
+        conversationId: PREVIEW_CONVERSATION_ID,
+        senderId: CHLOE_ID,
+        senderName: "Chloe",
+        senderKind: "user",
+        type: "text",
+        body: "The optimized time works for me. Want to keep 15 minutes before it for notes?",
+        private: false,
+        privateTo: null,
+        relatedMeetingId: null,
+        createdAt: ago(24),
+        clientNonce: "65555555-5555-4555-8555-555555555551",
+      },
+      {
+        id: "55555555-5555-4555-8555-555555555552",
+        conversationId: PREVIEW_CONVERSATION_ID,
+        senderId: null,
+        senderName: "Kairos",
+        senderKind: "system",
+        type: "system_reminder",
+        body: "Paper Research starts in 30 minutes. This reminder is private to you.",
+        private: true,
+        privateTo: DEMO_USER_ID,
+        relatedMeetingId: null,
+        createdAt: ago(12),
+        clientNonce: "65555555-5555-4555-8555-555555555552",
+      },
+      {
+        id: "55555555-5555-4555-8555-555555555553",
+        conversationId: PREVIEW_CONVERSATION_ID,
+        senderId: null,
+        senderName: "Kairos",
+        senderKind: "system",
+        type: "system_lateness",
+        body: "Gym Session may be running late. Share a status only if you choose to.",
+        private: true,
+        privateTo: DEMO_USER_ID,
+        relatedMeetingId: null,
+        createdAt: ago(4),
+        clientNonce: "65555555-5555-4555-8555-555555555553",
+      },
+    ],
+  };
+}
+function state() {
+  return (root.__kairosConversationState ??= initial());
+}
+export function resetPreviewConversations() {
+  root.__kairosConversationState = initial();
+}
+function person(id: string) {
+  return id === CHLOE_ID
+    ? chloeViewer
+    : id === MAYA_ID
+      ? { id: MAYA_ID, fullName: "Maya Chen", email: "maya@example.com" }
+      : demoViewer;
+}
+function participants(conversationId: string) {
+  return conversationId === PREVIEW_CONVERSATION_ID
+    ? [DEMO_USER_ID, CHLOE_ID]
+    : conversationId === MAYA_CONVERSATION_ID
+      ? [DEMO_USER_ID, MAYA_ID]
+      : [];
+}
+export function previewConversationIdFor(actorId: string, otherUserId: string) {
+  const pair = new Set([actorId, otherUserId]);
+  if (pair.has(DEMO_USER_ID) && pair.has(CHLOE_ID))
+    return PREVIEW_CONVERSATION_ID;
+  if (pair.has(DEMO_USER_ID) && pair.has(MAYA_ID)) return MAYA_CONVERSATION_ID;
+  return null;
+}
+function allowed(actorId: string, conversationId: string) {
+  return (
+    participants(conversationId).includes(actorId) &&
+    !state().removed.has(actorId)
+  );
+}
+export function removePreviewConversationMember(actorId: string) {
+  state().removed.add(actorId);
+}
+export function listPreviewConversation(
+  actorId: string,
+  otherUserId = actorId === DEMO_USER_ID ? CHLOE_ID : DEMO_USER_ID,
+  before: string | null = null,
+  limit = 50,
+): ConversationView | null {
+  const conversationId = previewConversationIdFor(actorId, otherUserId);
+  if (!conversationId || !allowed(actorId, conversationId)) return null;
+  const other = person(otherUserId),
+    demoUser = actorId === CHLOE_ID ? "chloe" : "justin";
+  const visible = state()
+    .messages.filter(
+      (message) =>
+        message.conversationId === conversationId &&
+        (!message.privateTo || message.privateTo === actorId) &&
+        (!before || message.createdAt < before),
+    )
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const page = visible.slice(0, limit).reverse();
+  const messages = page.map((message): ConversationMessage => {
+    const attachments = [...state().attachments.values()]
+      .filter((entry) => entry.messageId === message.id)
+      .map((entry) => ({
+        id: entry.id,
+        name: entry.name,
+        mimeType: entry.mimeType,
+        sizeBytes: entry.sizeBytes,
+        downloadPath: `${entry.downloadPath}?demoUser=${demoUser}`,
+        previewable: entry.previewable,
+      }));
+    return { ...message, isMine: message.senderId === actorId, attachments };
+  });
+  return {
+    id: conversationId,
+    otherUser: { id: other.id, name: other.fullName, email: other.email },
+    messages,
+    nextCursor: visible.length > limit ? (page[0]?.createdAt ?? null) : null,
+  };
+}
+export function listPreviewConversationById(
+  actorId: string,
+  conversationId: string,
+  before: string | null = null,
+  limit = 50,
+) {
+  const otherId = participants(conversationId).find((id) => id !== actorId);
+  return otherId
+    ? listPreviewConversation(actorId, otherId, before, limit)
+    : null;
+}
+export function listPreviewConversationContacts(
+  actorId: string,
+): ConversationContact[] {
+  const otherIds = actorId === CHLOE_ID ? [DEMO_USER_ID] : [CHLOE_ID, MAYA_ID];
+  return otherIds.map((otherId) => {
+    const conversationId = previewConversationIdFor(actorId, otherId),
+      other = person(otherId),
+      last = conversationId
+        ? state()
+            .messages.filter(
+              (message) =>
+                message.conversationId === conversationId &&
+                (!message.privateTo || message.privateTo === actorId),
+            )
+            .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
+        : null;
+    return {
+      id: otherId,
+      name: other.fullName,
+      email: other.email,
+      conversationId,
+      lastMessage: last?.body ?? null,
+      lastMessageAt: last?.createdAt ?? null,
+      unreadCount: last && last.senderId !== actorId ? 1 : 0,
+    };
+  });
+}
+export function sendPreviewMessage(
+  actorId: string,
+  conversationId: string,
+  body: string,
+  clientNonce: string,
+  relatedMeetingId: string | null = null,
+) {
+  if (!allowed(actorId, conversationId))
+    throw new AppError("Conversation access denied.");
+  const clean = body.trim();
+  if (!clean || clean.length > 4000)
+    throw new AppError("Enter a message under 4,000 characters.");
+  const duplicate = state().messages.find(
+    (message) =>
+      message.conversationId === conversationId &&
+      message.clientNonce === clientNonce,
+  );
+  if (duplicate) return duplicate.id;
+  const sender = person(actorId),
+    id = randomUUID();
+  state().messages.push({
+    id,
+    conversationId,
+    senderId: actorId,
+    senderName: sender.fullName,
+    senderKind: "user",
+    type: "text",
+    body: clean,
+    private: false,
+    privateTo: null,
+    relatedMeetingId,
+    createdAt: new Date().toISOString(),
+    clientNonce,
+  });
+  return id;
+}
+export function recordPreviewSystemMessage(
+  type: Exclude<MessageType, "text">,
+  body: string,
+  key: string,
+  options: { privateTo?: string | null; relatedMeetingId?: string | null } = {},
+) {
+  const duplicate = state().messages.find(
+    (message) => message.clientNonce === key,
+  );
+  if (duplicate) return duplicate.id;
+  const id = randomUUID();
+  state().messages.push({
+    id,
+    conversationId: PREVIEW_CONVERSATION_ID,
+    senderId: null,
+    senderName: "Kairos",
+    senderKind: "system",
+    type,
+    body,
+    private: Boolean(options.privateTo),
+    privateTo: options.privateTo ?? null,
+    relatedMeetingId: options.relatedMeetingId ?? null,
+    createdAt: new Date().toISOString(),
+    clientNonce: key,
+  });
+  return id;
+}
+export function addPreviewAttachment(
+  actorId: string,
+  conversationId: string,
+  file: { name: string; mimeType: string; bytes: Uint8Array },
+  body: string,
+  clientNonce: string,
+  relatedMeetingId: string | null,
+) {
+  const messageId = sendPreviewMessage(
+      actorId,
+      conversationId,
+      body || `Shared ${file.name}`,
+      clientNonce,
+      relatedMeetingId,
+    ),
+    id = randomUUID();
+  state().attachments.set(id, {
+    id,
+    conversationId,
+    messageId,
+    uploadedBy: actorId,
+    name: file.name,
+    mimeType: file.mimeType,
+    sizeBytes: file.bytes.byteLength,
+    downloadPath: `/api/attachments/${id}/download`,
+    previewable:
+      file.mimeType.startsWith("image/") ||
+      file.mimeType === "application/pdf" ||
+      file.mimeType === "text/plain",
+    bytes: file.bytes,
+  });
+  return id;
+}
+export function getPreviewAttachment(actorId: string, id: string) {
+  const value = state().attachments.get(id);
+  if (!value || !allowed(actorId, value.conversationId)) return null;
+  return value;
+}

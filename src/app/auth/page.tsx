@@ -1,1 +1,52 @@
-import Image from"next/image";import Link from"next/link";import{AuthForm}from"@/components/auth-form";import{Brand}from"@/components/brand";import{isSupabaseConfigured}from"@/lib/env";export default function Page(){const configured=isSupabaseConfigured();return <main className="min-h-screen px-4 py-6 lg:grid lg:grid-cols-[1.2fr_.8fr] lg:gap-10 lg:px-10"><section className="mx-auto w-full max-w-3xl"><Brand/><div className="py-8 text-center lg:text-left"><Image src="/kairos-mascot.png" alt="Kairos, your temporal guardian" width={340} height={340} className="mx-auto w-full max-w-[340px] lg:mx-0"/><p className="eyebrow text-[var(--cyan-deep)]">Your time. Our purpose.</p><h1 className="font-display mt-3 text-4xl font-bold text-[var(--navy)]">Hi, I&apos;m Kairos.</h1><p className="mt-4 max-w-xl text-lg leading-8 text-[var(--muted)]">A calm, capable secretary for busy days.</p></div></section><section className="mx-auto flex w-full max-w-lg items-center"><div className="w-full">{!configured&&<div className="mb-4 rounded-xl bg-[var(--gold-soft)] p-4 text-sm text-[var(--gold-deep)]"><strong>Supabase setup is pending.</strong><Link href="/" className="mt-3 flex min-h-11 items-center justify-center rounded-lg bg-[var(--navy)] text-white">Explore seeded preview</Link></div>}<AuthForm configured={configured}/></div></section></main>}
+import type { Metadata } from "next";
+import Image from "next/image";
+import Link from "next/link";
+import { AuthForm } from "@/components/auth-form";
+import { Brand } from "@/components/brand";
+import { isSupabaseConfigured } from "@/lib/env";
+
+export const metadata: Metadata = { title: "Sign in" };
+
+export default function AuthPage() {
+  const configured = isSupabaseConfigured();
+  return (
+    <main className="auth-layout">
+      <section className="auth-story">
+        <Brand />
+        <div>
+          <Image
+            src="/kairos-mascot.png"
+            alt="Kairos, your temporal guardian"
+            width={180}
+            height={180}
+            className="size-36 object-contain"
+            priority
+          />
+          <p className="eyebrow mt-5 text-[var(--cyan-deep)]">
+            Your time. Your rules.
+          </p>
+          <h2 className="font-display mt-2 text-4xl font-bold tracking-tight text-[var(--navy)]">
+            A calmer way to protect a busy day.
+          </h2>
+          <p className="mt-4 max-w-lg leading-7 text-[var(--muted)]">
+            Plan, coordinate, and recover when life changes—without giving up
+            control of your schedule.
+          </p>
+        </div>
+      </section>
+      <section className="auth-panel">
+        <div className="w-full max-w-md">
+          {!configured && (
+            <div className="mb-4 rounded-xl bg-[var(--gold-soft)] p-4 text-sm text-[var(--gold-deep)]">
+              <strong>Supabase setup is pending.</strong>
+              <Link href="/" className="btn btn-primary mt-3 min-h-11 w-full">
+                Explore local preview
+              </Link>
+            </div>
+          )}
+          <AuthForm configured={configured} />
+        </div>
+      </section>
+    </main>
+  );
+}

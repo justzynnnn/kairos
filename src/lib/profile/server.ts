@@ -1,36 +1,447 @@
 import "server-only";
-import { getCalendarItems,getViewer } from "@/lib/data";
+import { getCalendarItems, getViewer } from "@/lib/data";
 import { DEMO_USER_ID } from "@/lib/demo-data";
 import { isSupabaseConfigured } from "@/lib/env";
-import { actOnPreviewConnection,completePreviewCalendarItem,deletePreviewPreference,getPreviewSettings,listPreviewActivity,listPreviewConnections,listPreviewPreferences,matchPreviewContacts,recordPreviewActivity,requestPreviewConnection,searchPreviewUsers,updatePreviewPermission,updatePreviewPreference,updatePreviewSettings } from "@/lib/profile/preview-store";
+import {
+  actOnPreviewConnection,
+  completePreviewCalendarItem,
+  deletePreviewPreference,
+  getPreviewSettings,
+  listPreviewActivity,
+  listPreviewConnections,
+  listPreviewPreferences,
+  matchPreviewContacts,
+  recordPreviewActivity,
+  requestPreviewConnection,
+  searchPreviewUsers,
+  softCancelPreviewCalendarItem,
+  updatePreviewPreference,
+  updatePreviewSettings,
+} from "@/lib/profile/preview-store";
 // A single sync must not become a bulk directory dump.
 const MAX_CONTACT_EMAILS = 200;
-import type { ActivityEvent,ActivityType,EditablePreference,PermissionScope,ProfileSettings,UserSearchResult } from "@/lib/profile/types";
+import type {
+  ActivityEvent,
+  ActivityType,
+  EditablePreference,
+  ProfileSettings,
+  UserSearchResult,
+} from "@/lib/profile/types";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { AppError } from "@/lib/http";
 
-export async function getProfileSettings(){if(!isSupabaseConfigured())return getPreviewSettings();const viewer=await getViewer(),supabase=await createServerSupabaseClient(),{data,error}=await supabase.from("profiles").select("full_name,username,timezone,active_start,active_end,travel_buffer_minutes,location_enabled,automation_reminders,automation_lateness,activity_aggregate_sharing,demo_mode").eq("id",viewer.id).single();if(error||!data)throw new AppError("Profile settings could not be loaded.");return{fullName:data.full_name,username:data.username,timezone:data.timezone,activeStart:String(data.active_start).slice(0,5),activeEnd:String(data.active_end).slice(0,5),travelBufferMinutes:data.travel_buffer_minutes??15,locationEnabled:data.location_enabled,automationReminders:data.automation_reminders,automationLateness:data.automation_lateness,activityAggregateSharing:data.activity_aggregate_sharing,demoMode:data.demo_mode}as ProfileSettings;}
-export async function saveProfileSettings(value:ProfileSettings){if(!isSupabaseConfigured())return updatePreviewSettings(value);const viewer=await getViewer(),supabase=await createServerSupabaseClient(),{data,error}=await supabase.from("profiles").update({full_name:value.fullName,username:value.username,timezone:value.timezone,active_start:value.activeStart,active_end:value.activeEnd,travel_buffer_minutes:value.travelBufferMinutes,location_enabled:value.locationEnabled,automation_reminders:value.automationReminders,automation_lateness:value.automationLateness,activity_aggregate_sharing:value.activityAggregateSharing,updated_at:new Date().toISOString()}).eq("id",viewer.id).select("id").maybeSingle();if(error?.code==="23505")throw new AppError("That username is already taken.");if(error||!data)throw new AppError("Profile settings could not be saved. Refresh and try again.");return value;}
-export async function getConnections(){if(!isSupabaseConfigured())return listPreviewConnections();const viewer=await getViewer(),admin=createAdminSupabaseClient(),{data:rows}=await admin.from("connections").select("id,requester_id,addressee_id,status").or(`requester_id.eq.${viewer.id},addressee_id.eq.${viewer.id}`);const list=rows??[];if(!list.length)return[];
-// Profiles and permissions are fetched once for the whole list rather than per connection.
-const otherIds=list.map((row)=>row.requester_id===viewer.id?row.addressee_id:row.requester_id),[{data:profiles},{data:permissions},supabase]=await Promise.all([admin.from("profiles").select("id,full_name,email").in("id",otherIds),admin.from("schedule_permissions").select("grantee_id,scope,categories").eq("owner_id",viewer.id).in("grantee_id",otherIds),createServerSupabaseClient()]);
-const profileById=new Map((profiles??[]).map((profile)=>[profile.id,profile])),permissionById=new Map((permissions??[]).map((permission)=>[permission.grantee_id,permission]));
-const aggregates=await Promise.all(otherIds.map((otherId)=>supabase.rpc("get_shared_activity_aggregate",{p_user:otherId})));
-return list.map((row,index)=>{const otherId=otherIds[index],profile=profileById.get(otherId),permission=permissionById.get(otherId),aggregate=aggregates[index]?.data;return{id:row.id,userId:otherId,name:profile?.full_name??"Connection",email:profile?.email??"",status:row.status,direction:row.addressee_id===viewer.id?"incoming":"outgoing",permission:{scope:(permission?.scope??"none")as PermissionScope,categories:permission?.categories??[]},sharedActivity:aggregate?{activeDays:Number(aggregate.active_days??0),totalActions:Number(aggregate.total_actions??0),currentStreak:Number(aggregate.current_streak??0)}:null};});}
-export async function searchUsers(query:string):Promise<UserSearchResult[]>{if(!isSupabaseConfigured())return searchPreviewUsers(query);const clean=query.trim().toLowerCase();if(clean.length<2)return[];const viewer=await getViewer(),admin=createAdminSupabaseClient(),pattern=`%${clean}%`,[{data:profiles,error},{data:connections}]=await Promise.all([admin.from("profiles").select("id,full_name,username").neq("id",viewer.id).or(`full_name.ilike.${pattern},username.ilike.${pattern},email.ilike.${pattern}`).order("full_name").limit(10),admin.from("connections").select("id,requester_id,addressee_id,status").or(`requester_id.eq.${viewer.id},addressee_id.eq.${viewer.id}`)]);if(error)throw new AppError("Users could not be searched right now.");const byUser=new Map((connections??[]).map((connection)=>[connection.requester_id===viewer.id?connection.addressee_id:connection.requester_id,connection]));return(profiles??[]).map((profile)=>{const connection=byUser.get(profile.id);return{id:profile.id,name:profile.full_name,username:profile.username,connectionId:connection?.id??null,connectionStatus:!connection?"none":connection.status==="pending"?connection.addressee_id===viewer.id?"pending_incoming":"pending_outgoing":connection.status}as UserSearchResult;});}
+export async function getProfileSettings() {
+  if (!isSupabaseConfigured()) return getPreviewSettings();
+  const viewer = await getViewer(),
+    supabase = await createServerSupabaseClient(),
+    { data, error } = await supabase
+      .from("profiles")
+      .select(
+        "full_name,username,timezone,active_start,active_end,travel_buffer_minutes,location_enabled,automation_reminders,automation_lateness,activity_aggregate_sharing,schedule_visibility",
+      )
+      .eq("id", viewer.id)
+      .single();
+  if (error || !data)
+    throw new AppError("Profile settings could not be loaded.");
+  return {
+    fullName: data.full_name,
+    username: data.username,
+    timezone: data.timezone,
+    activeStart: String(data.active_start).slice(0, 5),
+    activeEnd: String(data.active_end).slice(0, 5),
+    travelBufferMinutes: data.travel_buffer_minutes ?? 15,
+    locationEnabled: data.location_enabled,
+    automationReminders: data.automation_reminders,
+    automationLateness: data.automation_lateness,
+    activityAggregateSharing: data.activity_aggregate_sharing,
+    scheduleVisibility: data.schedule_visibility ?? "private",
+  } as ProfileSettings;
+}
+export async function saveProfileSettings(value: ProfileSettings) {
+  if (!isSupabaseConfigured()) return updatePreviewSettings(value);
+  const viewer = await getViewer(),
+    supabase = await createServerSupabaseClient(),
+    { data, error } = await supabase
+      .from("profiles")
+      .update({
+        full_name: value.fullName,
+        username: value.username,
+        timezone: value.timezone,
+        active_start: value.activeStart,
+        active_end: value.activeEnd,
+        travel_buffer_minutes: value.travelBufferMinutes,
+        location_enabled: value.locationEnabled,
+        automation_reminders: value.automationReminders,
+        automation_lateness: value.automationLateness,
+        activity_aggregate_sharing: value.activityAggregateSharing,
+        schedule_visibility: value.scheduleVisibility,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", viewer.id)
+      .select("id")
+      .maybeSingle();
+  if (error?.code === "23505")
+    throw new AppError("That username is already taken.");
+  if (error || !data)
+    throw new AppError(
+      "Profile settings could not be saved. Refresh and try again.",
+    );
+  return value;
+}
+export async function getConnections() {
+  if (!isSupabaseConfigured()) return listPreviewConnections();
+  const viewer = await getViewer(),
+    admin = createAdminSupabaseClient(),
+    { data: rows } = await admin
+      .from("connections")
+      .select("id,requester_id,addressee_id,status")
+      .or(`requester_id.eq.${viewer.id},addressee_id.eq.${viewer.id}`);
+  const list = rows ?? [];
+  if (!list.length) return [];
+  // Profiles and permissions are fetched once for the whole list rather than per connection.
+  const otherIds = list.map((row) =>
+      row.requester_id === viewer.id ? row.addressee_id : row.requester_id,
+    ),
+    [{ data: profiles }, supabase] = await Promise.all([
+      admin.from("profiles").select("id,full_name,email").in("id", otherIds),
+      createServerSupabaseClient(),
+    ]);
+  const profileById = new Map(
+    (profiles ?? []).map((profile) => [profile.id, profile]),
+  );
+  const aggregates = await Promise.all(
+    otherIds.map((otherId) =>
+      supabase.rpc("get_shared_activity_aggregate", { p_user: otherId }),
+    ),
+  );
+  return list.map((row, index) => {
+    const otherId = otherIds[index],
+      profile = profileById.get(otherId),
+      aggregate = aggregates[index]?.data;
+    return {
+      id: row.id,
+      userId: otherId,
+      name: profile?.full_name ?? "Connection",
+      email: profile?.email ?? "",
+      status: row.status,
+      direction: row.addressee_id === viewer.id ? "incoming" : "outgoing",
+      permission: { scope: "none" as const, categories: [] },
+      sharedActivity: aggregate
+        ? {
+            activeDays: Number(aggregate.active_days ?? 0),
+            totalActions: Number(aggregate.total_actions ?? 0),
+            currentStreak: Number(aggregate.current_streak ?? 0),
+          }
+        : null,
+    };
+  });
+}
+export async function searchUsers(query: string): Promise<UserSearchResult[]> {
+  if (!isSupabaseConfigured()) return searchPreviewUsers(query);
+  const clean = query.trim().toLowerCase();
+  if (clean.length < 2) return [];
+  const viewer = await getViewer(),
+    admin = createAdminSupabaseClient(),
+    pattern = `%${clean}%`,
+    [{ data: profiles, error }, { data: connections }] = await Promise.all([
+      admin
+        .from("profiles")
+        .select("id,full_name,username")
+        .neq("id", viewer.id)
+        .or(
+          `full_name.ilike.${pattern},username.ilike.${pattern},email.ilike.${pattern}`,
+        )
+        .order("full_name")
+        .limit(10),
+      admin
+        .from("connections")
+        .select("id,requester_id,addressee_id,status")
+        .or(`requester_id.eq.${viewer.id},addressee_id.eq.${viewer.id}`),
+    ]);
+  if (error) throw new AppError("Users could not be searched right now.");
+  const byUser = new Map(
+    (connections ?? []).map((connection) => [
+      connection.requester_id === viewer.id
+        ? connection.addressee_id
+        : connection.requester_id,
+      connection,
+    ]),
+  );
+  return (profiles ?? []).map((profile) => {
+    const connection = byUser.get(profile.id);
+    return {
+      id: profile.id,
+      name: profile.full_name,
+      username: profile.username,
+      connectionId: connection?.id ?? null,
+      connectionStatus: !connection
+        ? "none"
+        : connection.status === "pending"
+          ? connection.addressee_id === viewer.id
+            ? "pending_incoming"
+            : "pending_outgoing"
+          : connection.status,
+    } as UserSearchResult;
+  });
+}
 // Address book entries are matched and discarded. Nothing about a contact who is
 // not already a Kairos user is stored, logged, or returned.
-export async function matchContacts(emails:string[]):Promise<UserSearchResult[]>{const clean=[...new Set(emails.map((email)=>email.trim().toLowerCase()).filter(Boolean))].slice(0,MAX_CONTACT_EMAILS);if(!clean.length)return[];if(!isSupabaseConfigured())return matchPreviewContacts(clean);const viewer=await getViewer(),admin=createAdminSupabaseClient(),[{data:profiles,error},{data:connections}]=await Promise.all([admin.from("profiles").select("id,full_name,username").neq("id",viewer.id).in("email",clean).order("full_name").limit(MAX_CONTACT_EMAILS),admin.from("connections").select("id,requester_id,addressee_id,status").or(`requester_id.eq.${viewer.id},addressee_id.eq.${viewer.id}`)]);if(error)throw new AppError("Contacts could not be matched right now.");const byUser=new Map((connections??[]).map((connection)=>[connection.requester_id===viewer.id?connection.addressee_id:connection.requester_id,connection]));return(profiles??[]).map((profile)=>{const connection=byUser.get(profile.id);return{id:profile.id,name:profile.full_name,username:profile.username,connectionId:connection?.id??null,connectionStatus:!connection?"none":connection.status==="pending"?connection.addressee_id===viewer.id?"pending_incoming":"pending_outgoing":connection.status}as UserSearchResult;});}
-export async function requestConnection(userId:string){if(!isSupabaseConfigured())return requestPreviewConnection(userId);const viewer=await getViewer();if(userId===viewer.id)throw new AppError("You cannot add yourself as a friend.");const admin=createAdminSupabaseClient(),[{data:target},{data:connections,error}]=await Promise.all([admin.from("profiles").select("id").eq("id",userId).maybeSingle(),admin.from("connections").select("id,requester_id,addressee_id,status").or(`and(requester_id.eq.${viewer.id},addressee_id.eq.${userId}),and(requester_id.eq.${userId},addressee_id.eq.${viewer.id})`)]);if(!target)throw new AppError("User not found.");if(error)throw new AppError("Friend request could not be checked.");const existing=connections?.[0];if(existing){if(existing.status==="blocked")throw new AppError("This user is unavailable.");if(existing.status==="accepted")return existing;if(existing.addressee_id===viewer.id)throw new AppError("This user already sent you a request. Accept it from the search result.");return existing;}const{data,error:insertError}=await admin.from("connections").insert({requester_id:viewer.id,addressee_id:userId,status:"pending"}).select("id,requester_id,addressee_id,status").single();if(insertError||!data)throw new AppError("Friend request could not be sent.");return data;}
-export async function manageConnection(id:string,action:string){if(!isSupabaseConfigured())return actOnPreviewConnection(id,action);const supabase=await createServerSupabaseClient(),{error}=await supabase.rpc("manage_connection",{p_connection_id:id,p_action:action});if(error)throw new AppError("That connection action is not allowed.");return true;}
-export async function savePermission(granteeId:string,scope:PermissionScope,categories:string[]){if(!isSupabaseConfigured())return updatePreviewPermission(granteeId,scope,categories);const supabase=await createServerSupabaseClient(),{error}=await supabase.rpc("update_schedule_permission",{p_grantee:granteeId,p_scope:scope,p_categories:categories});if(error)throw new AppError("Schedule permission could not be saved.");return{scope,categories:scope==="categories"?categories:[]};}
-export async function getEditablePreferences(){if(!isSupabaseConfigured())return listPreviewPreferences();const viewer=await getViewer(),supabase=await createServerSupabaseClient(),{data,error}=await supabase.from("preferences").select("id,category,default_duration_minutes,flexibility,can_shorten,can_split,can_skip").eq("user_id",viewer.id).order("category");if(error)throw new AppError("Preferences could not be loaded.");return(data??[]).map((entry)=>({id:entry.id,category:entry.category,defaultDurationMinutes:entry.default_duration_minutes,flexibility:entry.flexibility,canShorten:entry.can_shorten,canSplit:entry.can_split,canSkip:entry.can_skip}))as EditablePreference[];}
-export async function savePreference(id:string,value:Omit<EditablePreference,"id">){if(!isSupabaseConfigured())return updatePreviewPreference(id,value);const viewer=await getViewer(),supabase=await createServerSupabaseClient(),{error}=await supabase.from("preferences").update({category:value.category,default_duration_minutes:value.defaultDurationMinutes,flexibility:value.flexibility,can_shorten:value.canShorten,can_split:value.canSplit,can_skip:value.canSkip}).eq("id",id).eq("user_id",viewer.id);if(error)throw new AppError("Preference could not be saved.");return{id,...value};}
-export async function removePreference(id:string){if(!isSupabaseConfigured())return deletePreviewPreference(id);const viewer=await getViewer(),supabase=await createServerSupabaseClient(),{error}=await supabase.from("preferences").delete().eq("id",id).eq("user_id",viewer.id);if(error)throw new AppError("Preference could not be deleted.");return true;}
-export async function recordPrivateActivity(userId:string,type:ActivityType,title:string,sourceKey:string,score=2,entityId:string|null=null){if(!isSupabaseConfigured()){if(userId===DEMO_USER_ID)return recordPreviewActivity(type,title,sourceKey,score,userId);return null;}const admin=createAdminSupabaseClient(),{data}=await admin.from("private_activity_events").upsert({user_id:userId,activity_type:type,title,source_key:sourceKey,score,entity_id:entityId},{onConflict:"user_id,source_key",ignoreDuplicates:true}).select("id").maybeSingle();return data;}
-export async function ensurePrivateActivity(){const viewer=await getViewer(),items=await getCalendarItems(),now=Date.now();for(const item of items){if(item.type==="deadline"&&item.dueAt&&new Date(item.dueAt).getTime()>=now&&new Date(item.dueAt).getTime()-now<=7*24*60*60_000)await recordPrivateActivity(viewer.id,"deadline",item.title,`deadline:${item.id}:${item.dueAt}`,3,isSupabaseConfigured()?item.id:null);}}
-export async function getPrivateActivity(){await ensurePrivateActivity();if(!isSupabaseConfigured())return listPreviewActivity(DEMO_USER_ID);const viewer=await getViewer(),supabase=await createServerSupabaseClient(),{data,error}=await supabase.from("private_activity_events").select("id,user_id,activity_type,title,score,source_key,created_at").eq("user_id",viewer.id).order("created_at",{ascending:false}).limit(120);if(error)throw new AppError("Private activity could not be loaded.");return(data??[]).map((entry):ActivityEvent=>({id:entry.id,userId:entry.user_id,type:entry.activity_type,title:entry.title,score:entry.score,sourceKey:entry.source_key,createdAt:entry.created_at}));}
-export async function completeCalendarItem(id:string){if(!isSupabaseConfigured())return completePreviewCalendarItem(id);const supabase=await createServerSupabaseClient(),{data,error}=await supabase.rpc("complete_calendar_item",{p_item_id:id});if(error)throw new AppError("This item could not be completed safely.");return data;}
-
-export async function setDemoMode(enabled:boolean){if(!isSupabaseConfigured())return updatePreviewSettings({demoMode:true});const supabase=await createServerSupabaseClient(),{data,error}=await supabase.rpc("set_demo_mode",{p_enabled:enabled});if(error)throw new AppError("Demo mode could not be updated. Apply the latest schema.sql and try again.");return data;}
+export async function matchContacts(
+  emails: string[],
+): Promise<UserSearchResult[]> {
+  const clean = [
+    ...new Set(
+      emails.map((email) => email.trim().toLowerCase()).filter(Boolean),
+    ),
+  ].slice(0, MAX_CONTACT_EMAILS);
+  if (!clean.length) return [];
+  if (!isSupabaseConfigured()) return matchPreviewContacts(clean);
+  const viewer = await getViewer(),
+    admin = createAdminSupabaseClient(),
+    [{ data: profiles, error }, { data: connections }] = await Promise.all([
+      admin
+        .from("profiles")
+        .select("id,full_name,username")
+        .neq("id", viewer.id)
+        .in("email", clean)
+        .order("full_name")
+        .limit(MAX_CONTACT_EMAILS),
+      admin
+        .from("connections")
+        .select("id,requester_id,addressee_id,status")
+        .or(`requester_id.eq.${viewer.id},addressee_id.eq.${viewer.id}`),
+    ]);
+  if (error) throw new AppError("Contacts could not be matched right now.");
+  const byUser = new Map(
+    (connections ?? []).map((connection) => [
+      connection.requester_id === viewer.id
+        ? connection.addressee_id
+        : connection.requester_id,
+      connection,
+    ]),
+  );
+  return (profiles ?? []).map((profile) => {
+    const connection = byUser.get(profile.id);
+    return {
+      id: profile.id,
+      name: profile.full_name,
+      username: profile.username,
+      connectionId: connection?.id ?? null,
+      connectionStatus: !connection
+        ? "none"
+        : connection.status === "pending"
+          ? connection.addressee_id === viewer.id
+            ? "pending_incoming"
+            : "pending_outgoing"
+          : connection.status,
+    } as UserSearchResult;
+  });
+}
+export async function requestConnection(userId: string) {
+  if (!isSupabaseConfigured()) return requestPreviewConnection(userId);
+  const viewer = await getViewer();
+  if (userId === viewer.id)
+    throw new AppError("You cannot add yourself as a friend.");
+  const admin = createAdminSupabaseClient(),
+    [{ data: target }, { data: connections, error }] = await Promise.all([
+      admin.from("profiles").select("id").eq("id", userId).maybeSingle(),
+      admin
+        .from("connections")
+        .select("id,requester_id,addressee_id,status")
+        .or(
+          `and(requester_id.eq.${viewer.id},addressee_id.eq.${userId}),and(requester_id.eq.${userId},addressee_id.eq.${viewer.id})`,
+        ),
+    ]);
+  if (!target) throw new AppError("User not found.");
+  if (error) throw new AppError("Friend request could not be checked.");
+  const existing = connections?.[0];
+  if (existing) {
+    if (existing.status === "blocked")
+      throw new AppError("This user is unavailable.");
+    if (existing.status === "accepted") return existing;
+    if (existing.addressee_id === viewer.id)
+      throw new AppError(
+        "This user already sent you a request. Accept it from the search result.",
+      );
+    return existing;
+  }
+  const { data, error: insertError } = await admin
+    .from("connections")
+    .insert({
+      requester_id: viewer.id,
+      addressee_id: userId,
+      status: "pending",
+    })
+    .select("id,requester_id,addressee_id,status")
+    .single();
+  if (insertError || !data)
+    throw new AppError("Friend request could not be sent.");
+  return data;
+}
+export async function manageConnection(id: string, action: string) {
+  if (!isSupabaseConfigured()) return actOnPreviewConnection(id, action);
+  const supabase = await createServerSupabaseClient(),
+    { error } = await supabase.rpc("manage_connection", {
+      p_connection_id: id,
+      p_action: action,
+    });
+  if (error) throw new AppError("That connection action is not allowed.");
+  return true;
+}
+export async function getEditablePreferences() {
+  if (!isSupabaseConfigured()) return listPreviewPreferences();
+  const viewer = await getViewer(),
+    supabase = await createServerSupabaseClient(),
+    { data, error } = await supabase
+      .from("preferences")
+      .select(
+        "id,category,default_duration_minutes,flexibility,can_shorten,can_split,can_skip",
+      )
+      .eq("user_id", viewer.id)
+      .order("category");
+  if (error) throw new AppError("Preferences could not be loaded.");
+  return (data ?? []).map((entry) => ({
+    id: entry.id,
+    category: entry.category,
+    defaultDurationMinutes: entry.default_duration_minutes,
+    flexibility: entry.flexibility,
+    canShorten: entry.can_shorten,
+    canSplit: entry.can_split,
+    canSkip: entry.can_skip,
+  })) as EditablePreference[];
+}
+export async function savePreference(
+  id: string,
+  value: Omit<EditablePreference, "id">,
+) {
+  if (!isSupabaseConfigured()) return updatePreviewPreference(id, value);
+  const viewer = await getViewer(),
+    supabase = await createServerSupabaseClient(),
+    { error } = await supabase
+      .from("preferences")
+      .update({
+        category: value.category,
+        default_duration_minutes: value.defaultDurationMinutes,
+        flexibility: value.flexibility,
+        can_shorten: value.canShorten,
+        can_split: value.canSplit,
+        can_skip: value.canSkip,
+      })
+      .eq("id", id)
+      .eq("user_id", viewer.id);
+  if (error) throw new AppError("Preference could not be saved.");
+  return { id, ...value };
+}
+export async function removePreference(id: string) {
+  if (!isSupabaseConfigured()) return deletePreviewPreference(id);
+  const viewer = await getViewer(),
+    supabase = await createServerSupabaseClient(),
+    { error } = await supabase
+      .from("preferences")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", viewer.id);
+  if (error) throw new AppError("Preference could not be deleted.");
+  return true;
+}
+export async function recordPrivateActivity(
+  userId: string,
+  type: ActivityType,
+  title: string,
+  sourceKey: string,
+  score = 2,
+  entityId: string | null = null,
+) {
+  if (!isSupabaseConfigured()) {
+    if (userId === DEMO_USER_ID)
+      return recordPreviewActivity(type, title, sourceKey, score, userId);
+    return null;
+  }
+  const admin = createAdminSupabaseClient(),
+    { data } = await admin
+      .from("private_activity_events")
+      .upsert(
+        {
+          user_id: userId,
+          activity_type: type,
+          title,
+          source_key: sourceKey,
+          score,
+          entity_id: entityId,
+        },
+        { onConflict: "user_id,source_key", ignoreDuplicates: true },
+      )
+      .select("id")
+      .maybeSingle();
+  return data;
+}
+export async function ensurePrivateActivity() {
+  const viewer = await getViewer(),
+    items = await getCalendarItems(),
+    now = Date.now();
+  for (const item of items) {
+    if (
+      item.type === "deadline" &&
+      item.dueAt &&
+      new Date(item.dueAt).getTime() >= now &&
+      new Date(item.dueAt).getTime() - now <= 7 * 24 * 60 * 60_000
+    )
+      await recordPrivateActivity(
+        viewer.id,
+        "deadline",
+        item.title,
+        `deadline:${item.id}:${item.dueAt}`,
+        3,
+        isSupabaseConfigured() ? item.id : null,
+      );
+  }
+}
+export async function getPrivateActivity() {
+  await ensurePrivateActivity();
+  if (!isSupabaseConfigured()) return listPreviewActivity(DEMO_USER_ID);
+  const viewer = await getViewer(),
+    supabase = await createServerSupabaseClient(),
+    { data, error } = await supabase
+      .from("private_activity_events")
+      .select("id,user_id,activity_type,title,score,source_key,created_at")
+      .eq("user_id", viewer.id)
+      .order("created_at", { ascending: false })
+      .limit(120);
+  if (error) throw new AppError("Private activity could not be loaded.");
+  return (data ?? []).map(
+    (entry): ActivityEvent => ({
+      id: entry.id,
+      userId: entry.user_id,
+      type: entry.activity_type,
+      title: entry.title,
+      score: entry.score,
+      sourceKey: entry.source_key,
+      createdAt: entry.created_at,
+    }),
+  );
+}
+export async function completeCalendarItem(id: string) {
+  if (!isSupabaseConfigured()) return completePreviewCalendarItem(id);
+  const supabase = await createServerSupabaseClient(),
+    { data, error } = await supabase.rpc("complete_calendar_item", {
+      p_item_id: id,
+    });
+  if (error) throw new AppError("This item could not be completed safely.");
+  return data;
+}
+export async function softCancelCalendarItem(id: string, version: number) {
+  if (!isSupabaseConfigured())
+    return softCancelPreviewCalendarItem(id, version);
+  const supabase = await createServerSupabaseClient(),
+    { data, error } = await supabase.rpc("soft_cancel_calendar_item", {
+      p_item_id: id,
+      p_item_version: version,
+    });
+  if (error)
+    throw new AppError(
+      "This item changed or could not be cancelled safely.",
+      409,
+    );
+  return data;
+}

@@ -1,26 +1,335 @@
 import { randomUUID } from "node:crypto";
-import { DEMO_USER_ID,demoViewer,getDemoCalendarItems,getDemoScheduleVersion,replaceDemoCalendarItems } from "@/lib/demo-data";
-import { CHLOE_ID,chloeViewer } from "@/lib/meetings/preview-store";
-import type { ActivityEvent,ConnectionCard,EditablePreference,PermissionScope,ProfileSettings,UserSearchResult } from "@/lib/profile/types";
+import {
+  DEMO_USER_ID,
+  demoViewer,
+  getDemoCalendarItems,
+  getDemoScheduleVersion,
+  replaceDemoCalendarItems,
+} from "@/lib/demo-data";
+import { CHLOE_ID, chloeViewer } from "@/lib/meetings/preview-store";
+import type {
+  ActivityEvent,
+  ConnectionCard,
+  EditablePreference,
+  PermissionScope,
+  ProfileSettings,
+  UserSearchResult,
+} from "@/lib/profile/types";
 import { AppError } from "@/lib/http";
-type State={settings:ProfileSettings;connections:ConnectionCard[];preferences:EditablePreference[];activity:ActivityEvent[]};
-const root=globalThis as typeof globalThis&{__kairosProfileState?:State};
-function seedActivity():ActivityEvent[]{const types:ActivityEvent["type"][]=["task_completion","deadline","meeting","preparation","schedule_adherence"];return Array.from({length:34},(_,index)=>({id:randomUUID(),userId:DEMO_USER_ID,type:types[index%types.length],title:["Task completed","Deadline protected","Meeting coordinated","Preparation finished","Protected time followed"][index%5],score:1+index%4,sourceKey:`seed:${index}`,createdAt:new Date(Date.now()-(index*2+1)*24*60*60_000).toISOString()}));}
-function initial():State{return{settings:{fullName:demoViewer.fullName,username:demoViewer.username,timezone:demoViewer.timezone,activeStart:demoViewer.activeStart,activeEnd:demoViewer.activeEnd,travelBufferMinutes:15,locationEnabled:true,automationReminders:true,automationLateness:true,activityAggregateSharing:false,demoMode:true},connections:[{id:"99999999-9999-4999-8999-999999999999",userId:CHLOE_ID,name:chloeViewer.fullName,email:chloeViewer.email,status:"accepted",direction:"outgoing",permission:{scope:"free_busy",categories:[]},sharedActivity:null},{id:"99999999-9999-4999-8999-999999999998",userId:"33333333-3333-4333-8333-333333333333",name:"Maya Chen",email:"maya@example.com",status:"accepted",direction:"outgoing",permission:{scope:"categories",categories:["Class"]},sharedActivity:null}],preferences:[{id:"88888888-8888-4888-8888-888888888881",category:"Fitness",defaultDurationMinutes:60,flexibility:"flexible",canShorten:false,canSplit:false,canSkip:false},{id:"88888888-8888-4888-8888-888888888882",category:"Preparation",defaultDurationMinutes:90,flexibility:"protected",canShorten:false,canSplit:true,canSkip:false}],activity:seedActivity()};}
-function state(){return root.__kairosProfileState??=initial();}
-export function resetPreviewProfile(){root.__kairosProfileState=initial();}
-export function getPreviewSettings(){return structuredClone(state().settings);}
-export function updatePreviewSettings(value:Partial<ProfileSettings>){state().settings={...state().settings,...value};return getPreviewSettings();}
-export function listPreviewConnections(){return structuredClone(state().connections);}
-const previewDirectory=[{id:CHLOE_ID,name:chloeViewer.fullName,username:chloeViewer.username,email:chloeViewer.email},{id:"33333333-3333-4333-8333-333333333333",name:"Maya Chen",username:"maya",email:"maya@example.com"},{id:"33333333-3333-4333-8333-333333333334",name:"Noah Santos",username:"noah",email:"noah@kairos.app"}];
-export function matchPreviewContacts(emails:string[]):UserSearchResult[]{const wanted=new Set(emails);return previewDirectory.filter((user)=>wanted.has(user.email.toLowerCase())).map((user)=>{const connection=state().connections.find((entry)=>entry.userId===user.id);return{id:user.id,name:user.name,username:user.username,connectionId:connection?.id??null,connectionStatus:!connection?"none":connection.status==="pending"?connection.direction==="incoming"?"pending_incoming":"pending_outgoing":connection.status};});}
-export function searchPreviewUsers(query:string):UserSearchResult[]{const clean=query.trim().toLowerCase();if(clean.length<2)return[];return previewDirectory.filter((user)=>`${user.name} ${user.username} ${user.email}`.toLowerCase().includes(clean)).map((user)=>{const connection=state().connections.find((entry)=>entry.userId===user.id);return{id:user.id,name:user.name,username:user.username,connectionId:connection?.id??null,connectionStatus:!connection?"none":connection.status==="pending"?connection.direction==="incoming"?"pending_incoming":"pending_outgoing":connection.status};});}
-export function requestPreviewConnection(userId:string){const user=previewDirectory.find((entry)=>entry.id===userId);if(!user)throw new AppError("User not found.");const existing=state().connections.find((entry)=>entry.userId===userId);if(existing){if(existing.status==="blocked")throw new AppError("This user is unavailable.");return structuredClone(existing);}const connection:ConnectionCard={id:randomUUID(),userId:user.id,name:user.name,email:user.email,status:"pending",direction:"outgoing",permission:{scope:"none",categories:[]},sharedActivity:null};state().connections.unshift(connection);return structuredClone(connection);}
-export function actOnPreviewConnection(id:string,action:string){const connection=state().connections.find((entry)=>entry.id===id);if(!connection)throw new AppError("Connection not found.");if(action==="accept"&&connection.status==="pending"){connection.status="accepted";connection.permission={scope:"free_busy",categories:[]};}else if(action==="block"){connection.status="blocked";connection.permission={scope:"none",categories:[]};}else if(action==="remove")state().connections=state().connections.filter((entry)=>entry.id!==id);else throw new AppError("That connection action is unavailable.");return structuredClone(connection);}
-export function updatePreviewPermission(granteeId:string,scope:PermissionScope,categories:string[]){const connection=state().connections.find((entry)=>entry.userId===granteeId);if(!connection||connection.status!=="accepted")throw new AppError("An accepted connection is required.");connection.permission={scope,categories:scope==="categories"?[...new Set(categories)]:[]};return structuredClone(connection.permission);}
-export function listPreviewPreferences(){return structuredClone(state().preferences);}
-export function updatePreviewPreference(id:string,value:Omit<EditablePreference,"id">){const index=state().preferences.findIndex((entry)=>entry.id===id);if(index<0)throw new AppError("Preference not found.");state().preferences[index]={id,...value};return structuredClone(state().preferences[index]);}
-export function deletePreviewPreference(id:string){const before=state().preferences.length;state().preferences=state().preferences.filter((entry)=>entry.id!==id);return state().preferences.length<before;}
-export function listPreviewActivity(userId=DEMO_USER_ID){return structuredClone(state().activity).filter((entry)=>entry.userId===userId).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));}
-export function recordPreviewActivity(type:ActivityEvent["type"],title:string,sourceKey:string,score=2,userId=DEMO_USER_ID){const duplicate=state().activity.find((entry)=>entry.userId===userId&&entry.sourceKey===sourceKey);if(duplicate)return structuredClone(duplicate);const event:ActivityEvent={id:randomUUID(),userId,type,title,score,sourceKey,createdAt:new Date().toISOString()};state().activity.push(event);return structuredClone(event);}
-export function completePreviewCalendarItem(id:string){const items=getDemoCalendarItems(),item=items.find((entry)=>entry.id===id);if(!item||!(["task","preparation"]as string[]).includes(item.type)||item.status!=="scheduled")throw new AppError("This item cannot be completed.");item.status="completed";item.version++;if(!replaceDemoCalendarItems(items,getDemoScheduleVersion()))throw new AppError("Your schedule changed. Try again.");recordPreviewActivity(item.type==="preparation"?"preparation":"task_completion",item.title,`complete:${id}`,3);recordPreviewActivity("schedule_adherence","Protected time followed",`adherence:${id}`,2);return item;}
+type State = {
+  settings: ProfileSettings;
+  connections: ConnectionCard[];
+  preferences: EditablePreference[];
+  activity: ActivityEvent[];
+};
+const root = globalThis as typeof globalThis & { __kairosProfileState?: State };
+function seedActivity(): ActivityEvent[] {
+  const types: ActivityEvent["type"][] = [
+    "task_completion",
+    "deadline",
+    "meeting",
+    "preparation",
+    "schedule_adherence",
+  ];
+  return Array.from({ length: 34 }, (_, index) => ({
+    id: randomUUID(),
+    userId: DEMO_USER_ID,
+    type: types[index % types.length],
+    title: [
+      "Task completed",
+      "Deadline protected",
+      "Meeting coordinated",
+      "Preparation finished",
+      "Protected time followed",
+    ][index % 5],
+    score: 1 + (index % 4),
+    sourceKey: `seed:${index}`,
+    createdAt: new Date(
+      Date.now() - (index * 2 + 1) * 24 * 60 * 60_000,
+    ).toISOString(),
+  }));
+}
+function initial(): State {
+  return {
+    settings: {
+      fullName: demoViewer.fullName,
+      username: demoViewer.username,
+      timezone: demoViewer.timezone,
+      activeStart: demoViewer.activeStart,
+      activeEnd: demoViewer.activeEnd,
+      travelBufferMinutes: 15,
+      locationEnabled: true,
+      automationReminders: true,
+      automationLateness: true,
+      activityAggregateSharing: false,
+      scheduleVisibility: "private",
+    },
+    connections: [
+      {
+        id: "99999999-9999-4999-8999-999999999999",
+        userId: CHLOE_ID,
+        name: chloeViewer.fullName,
+        email: chloeViewer.email,
+        status: "accepted",
+        direction: "outgoing",
+        permission: { scope: "free_busy", categories: [] },
+        sharedActivity: null,
+      },
+      {
+        id: "99999999-9999-4999-8999-999999999998",
+        userId: "33333333-3333-4333-8333-333333333333",
+        name: "Maya Chen",
+        email: "maya@example.com",
+        status: "accepted",
+        direction: "outgoing",
+        permission: { scope: "categories", categories: ["Class"] },
+        sharedActivity: null,
+      },
+    ],
+    preferences: [
+      {
+        id: "88888888-8888-4888-8888-888888888881",
+        category: "Fitness",
+        defaultDurationMinutes: 60,
+        flexibility: "flexible",
+        canShorten: false,
+        canSplit: false,
+        canSkip: false,
+      },
+      {
+        id: "88888888-8888-4888-8888-888888888882",
+        category: "Preparation",
+        defaultDurationMinutes: 90,
+        flexibility: "protected",
+        canShorten: false,
+        canSplit: true,
+        canSkip: false,
+      },
+    ],
+    activity: seedActivity(),
+  };
+}
+function state() {
+  return (root.__kairosProfileState ??= initial());
+}
+export function resetPreviewProfile() {
+  root.__kairosProfileState = initial();
+}
+export function getPreviewSettings() {
+  return structuredClone(state().settings);
+}
+export function updatePreviewSettings(value: Partial<ProfileSettings>) {
+  state().settings = { ...state().settings, ...value };
+  return getPreviewSettings();
+}
+export function listPreviewConnections() {
+  return structuredClone(state().connections);
+}
+const previewDirectory = [
+  {
+    id: CHLOE_ID,
+    name: chloeViewer.fullName,
+    username: chloeViewer.username,
+    email: chloeViewer.email,
+  },
+  {
+    id: "33333333-3333-4333-8333-333333333333",
+    name: "Maya Chen",
+    username: "maya",
+    email: "maya@example.com",
+  },
+  {
+    id: "33333333-3333-4333-8333-333333333334",
+    name: "Noah Santos",
+    username: "noah",
+    email: "noah@kairos.app",
+  },
+];
+export function matchPreviewContacts(emails: string[]): UserSearchResult[] {
+  const wanted = new Set(emails);
+  return previewDirectory
+    .filter((user) => wanted.has(user.email.toLowerCase()))
+    .map((user) => {
+      const connection = state().connections.find(
+        (entry) => entry.userId === user.id,
+      );
+      return {
+        id: user.id,
+        name: user.name,
+        username: user.username,
+        connectionId: connection?.id ?? null,
+        connectionStatus: !connection
+          ? "none"
+          : connection.status === "pending"
+            ? connection.direction === "incoming"
+              ? "pending_incoming"
+              : "pending_outgoing"
+            : connection.status,
+      };
+    });
+}
+export function searchPreviewUsers(query: string): UserSearchResult[] {
+  const clean = query.trim().toLowerCase();
+  if (clean.length < 2) return [];
+  return previewDirectory
+    .filter((user) =>
+      `${user.name} ${user.username} ${user.email}`
+        .toLowerCase()
+        .includes(clean),
+    )
+    .map((user) => {
+      const connection = state().connections.find(
+        (entry) => entry.userId === user.id,
+      );
+      return {
+        id: user.id,
+        name: user.name,
+        username: user.username,
+        connectionId: connection?.id ?? null,
+        connectionStatus: !connection
+          ? "none"
+          : connection.status === "pending"
+            ? connection.direction === "incoming"
+              ? "pending_incoming"
+              : "pending_outgoing"
+            : connection.status,
+      };
+    });
+}
+export function requestPreviewConnection(userId: string) {
+  const user = previewDirectory.find((entry) => entry.id === userId);
+  if (!user) throw new AppError("User not found.");
+  const existing = state().connections.find((entry) => entry.userId === userId);
+  if (existing) {
+    if (existing.status === "blocked")
+      throw new AppError("This user is unavailable.");
+    return structuredClone(existing);
+  }
+  const connection: ConnectionCard = {
+    id: randomUUID(),
+    userId: user.id,
+    name: user.name,
+    email: user.email,
+    status: "pending",
+    direction: "outgoing",
+    permission: { scope: "none", categories: [] },
+    sharedActivity: null,
+  };
+  state().connections.unshift(connection);
+  return structuredClone(connection);
+}
+export function actOnPreviewConnection(id: string, action: string) {
+  const connection = state().connections.find((entry) => entry.id === id);
+  if (!connection) throw new AppError("Connection not found.");
+  if (action === "accept" && connection.status === "pending") {
+    connection.status = "accepted";
+    connection.permission = { scope: "free_busy", categories: [] };
+  } else if (action === "block") {
+    connection.status = "blocked";
+    connection.permission = { scope: "none", categories: [] };
+  } else if (action === "remove")
+    state().connections = state().connections.filter(
+      (entry) => entry.id !== id,
+    );
+  else throw new AppError("That connection action is unavailable.");
+  return structuredClone(connection);
+}
+export function updatePreviewPermission(
+  granteeId: string,
+  scope: PermissionScope,
+  categories: string[],
+) {
+  const connection = state().connections.find(
+    (entry) => entry.userId === granteeId,
+  );
+  if (!connection || connection.status !== "accepted")
+    throw new AppError("An accepted connection is required.");
+  connection.permission = {
+    scope,
+    categories: scope === "categories" ? [...new Set(categories)] : [],
+  };
+  return structuredClone(connection.permission);
+}
+export function listPreviewPreferences() {
+  return structuredClone(state().preferences);
+}
+export function updatePreviewPreference(
+  id: string,
+  value: Omit<EditablePreference, "id">,
+) {
+  const index = state().preferences.findIndex((entry) => entry.id === id);
+  if (index < 0) throw new AppError("Preference not found.");
+  state().preferences[index] = { id, ...value };
+  return structuredClone(state().preferences[index]);
+}
+export function deletePreviewPreference(id: string) {
+  const before = state().preferences.length;
+  state().preferences = state().preferences.filter((entry) => entry.id !== id);
+  return state().preferences.length < before;
+}
+export function listPreviewActivity(userId = DEMO_USER_ID) {
+  return structuredClone(state().activity)
+    .filter((entry) => entry.userId === userId)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+export function recordPreviewActivity(
+  type: ActivityEvent["type"],
+  title: string,
+  sourceKey: string,
+  score = 2,
+  userId = DEMO_USER_ID,
+) {
+  const duplicate = state().activity.find(
+    (entry) => entry.userId === userId && entry.sourceKey === sourceKey,
+  );
+  if (duplicate) return structuredClone(duplicate);
+  const event: ActivityEvent = {
+    id: randomUUID(),
+    userId,
+    type,
+    title,
+    score,
+    sourceKey,
+    createdAt: new Date().toISOString(),
+  };
+  state().activity.push(event);
+  return structuredClone(event);
+}
+export function completePreviewCalendarItem(id: string) {
+  const items = getDemoCalendarItems(),
+    item = items.find((entry) => entry.id === id);
+  if (
+    !item ||
+    !(["task", "preparation"] as string[]).includes(item.type) ||
+    item.status !== "scheduled"
+  )
+    throw new AppError("This item cannot be completed.");
+  item.status = "completed";
+  item.version++;
+  if (!replaceDemoCalendarItems(items, getDemoScheduleVersion()))
+    throw new AppError("Your schedule changed. Try again.");
+  recordPreviewActivity(
+    item.type === "preparation" ? "preparation" : "task_completion",
+    item.title,
+    `complete:${id}`,
+    3,
+  );
+  recordPreviewActivity(
+    "schedule_adherence",
+    "Protected time followed",
+    `adherence:${id}`,
+    2,
+  );
+  return item;
+}
+export function softCancelPreviewCalendarItem(id: string, version: number) {
+  const items = getDemoCalendarItems(),
+    item = items.find((entry) => entry.id === id);
+  if (!item || item.version !== version || item.status === "cancelled")
+    throw new AppError("Your schedule changed. Refresh and try again.", 409);
+  item.status = "cancelled";
+  item.version++;
+  if (!replaceDemoCalendarItems(items, getDemoScheduleVersion()))
+    throw new AppError("Your schedule changed. Refresh and try again.", 409);
+  return item;
+}

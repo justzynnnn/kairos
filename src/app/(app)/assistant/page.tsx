@@ -1,1 +1,44 @@
-import Image from"next/image";import{AssistantWorkspace}from"@/components/assistant-workspace";import{isOpenAIConfigured}from"@/lib/scheduling/openai";export default function Page(){return <div className="mx-auto max-w-4xl space-y-6"><header className="text-center"><Image src="/kairos-mascot.png" alt="Kairos" width={180} height={180} className="mx-auto w-36"/><p className="eyebrow mt-3 text-[var(--cyan-deep)]">Conversational secretary</p><h1 className="page-title mt-2">Talk to Kairos</h1><p className="mx-auto mt-3 max-w-xl text-[var(--muted)]">Describe your plan in one command. Kairos proposes; you review and confirm.</p></header><AssistantWorkspace openAIConfigured={isOpenAIConfigured()}/></div>}
+import type { Metadata } from "next";
+import Image from "next/image";
+import { AssistantWorkspace } from "@/components/assistant-workspace";
+import { getViewer } from "@/lib/data";
+import { isOpenAIConfigured } from "@/lib/scheduling/openai";
+
+export const metadata: Metadata = { title: "Assistant" };
+
+export default async function AssistantPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ command?: string }>;
+}) {
+  const [viewer, params] = await Promise.all([getViewer(), searchParams]);
+  return (
+    <div className="mx-auto max-w-[720px] space-y-6">
+      <header className="flex items-center gap-4">
+        <Image
+          src="/kairos-mascot.png"
+          alt=""
+          width={96}
+          height={96}
+          className="size-20 shrink-0 rounded-full object-cover"
+          priority
+        />
+        <div>
+          <p className="eyebrow text-[var(--cyan-deep)]">
+            Conversational scheduling
+          </p>
+          <h1 className="page-title mt-1">Plan with Kairos</h1>
+          <p className="mt-2 text-sm text-[var(--muted)]">
+            Describe the outcome. Review every assumption and change before it
+            reaches your schedule.
+          </p>
+        </div>
+      </header>
+      <AssistantWorkspace
+        openAIConfigured={isOpenAIConfigured()}
+        initialCommand={params.command?.slice(0, 2000) ?? ""}
+        timezone={viewer.timezone}
+      />
+    </div>
+  );
+}

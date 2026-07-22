@@ -7,16 +7,23 @@ import { isSupabaseConfigured } from "@/lib/env";
 import { getServerEnv } from "@/lib/server-env";
 import { resetPreviewRepairIncidents } from "@/lib/repair/incident-preview-store";
 
-export const runtime="nodejs";
-export async function POST(request:Request){
-  if(isSupabaseConfigured())return NextResponse.json({error:"The preview reset is disabled for hosted account data."},{status:403});
-  const secret=getServerEnv().CRON_SECRET;
-  const authorized=process.env.NODE_ENV!=="production"||(secret&&request.headers.get("authorization")===`Bearer ${secret}`);
-  if(!authorized)return NextResponse.json({error:"Unauthorized"},{status:401});
+export const runtime = "nodejs";
+export async function POST(request: Request) {
+  if (isSupabaseConfigured())
+    return NextResponse.json(
+      { error: "The preview reset is disabled for hosted account data." },
+      { status: 403 },
+    );
+  const secret = getServerEnv().CRON_SECRET;
+  const authorized =
+    process.env.NODE_ENV !== "production" ||
+    (secret && request.headers.get("authorization") === `Bearer ${secret}`);
+  if (!authorized)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   resetDemoCalendar();
   resetPreviewMeetings();
   resetPreviewConversations();
   resetPreviewProfile();
   resetPreviewRepairIncidents();
-  return NextResponse.json({ok:true});
+  return NextResponse.json({ ok: true });
 }

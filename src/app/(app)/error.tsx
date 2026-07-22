@@ -1,1 +1,15 @@
-"use client";export default function ErrorPage({reset}:{reset:()=>void}){return <section className="card p-8 text-center"><h1 className="page-title">Kairos couldn&apos;t load this view</h1><p className="mt-3 text-[var(--muted)]">Your data was not changed.</p><button onClick={reset} className="mt-6 rounded-xl bg-[var(--navy)] px-5 py-3 text-white">Try again</button></section>}
+"use client";
+export default function ErrorPage({ reset }: { reset: () => void }) {
+  return (
+    <section className="card p-8 text-center">
+      <h1 className="page-title">Kairos couldn&apos;t load this view</h1>
+      <p className="mt-3 text-[var(--muted)]">Your data was not changed.</p>
+      <button
+        onClick={reset}
+        className="mt-6 rounded-xl bg-[var(--navy)] px-5 py-3 text-white"
+      >
+        Try again
+      </button>
+    </section>
+  );
+}

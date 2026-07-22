@@ -1,3 +1,59 @@
-import{NextResponse}from"next/server";import{z}from"zod";import{getCalendarItems}from"@/lib/data";import{sendApprovedLatenessStatus}from"@/lib/conversations/server";
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { getCalendarItems } from "@/lib/data";
+import { sendApprovedLatenessStatus } from "@/lib/conversations/server";
 import { userMessage } from "@/lib/http";
-const schema=z.object({itemId:z.string().min(1).max(100),predictedArrival:z.iso.datetime(),delayMinutes:z.number().int().min(1).max(1440)});export const runtime="nodejs";export async function POST(request:Request){const value=schema.safeParse(await request.json().catch(()=>null));if(!value.success)return NextResponse.json({error:"A delayed ETA is required."},{status:400});try{const item=(await getCalendarItems()).find((entry)=>entry.id===value.data.itemId);if(!item)throw new Error("Calendar item not found.");const arrival=new Date(value.data.predictedArrival).getTime();if(!Number.isFinite(arrival)||Math.abs(arrival-Date.now())>24*60*60_000)throw new Error("Refresh Journey Mode before sharing.");const sent=await sendApprovedLatenessStatus(request,item.title,value.data.predictedArrival,value.data.delayMinutes);return NextResponse.json({success:true,message:"ETA shared without coordinates.",sent});}catch(error){return NextResponse.json({error:userMessage(error,"ETA could not be shared.")},{status:422});}}
+import {
+  allowPersistentRequest,
+  clientKey,
+  tooManyRequests,
+} from "@/lib/rate-limit-server";
+const schema = z.object({
+  itemId: z.string().min(1).max(100),
+  predictedArrival: z.iso.datetime(),
+  delayMinutes: z.number().int().min(1).max(1440),
+});
+export const runtime = "nodejs";
+export async function POST(request: Request) {
+  if (
+    !(await allowPersistentRequest(
+      clientKey(request.headers, "journey-share"),
+      30,
+    ))
+  )
+    return tooManyRequests();
+  const value = schema.safeParse(await request.json().catch(() => null));
+  if (!value.success)
+    return NextResponse.json(
+      { error: "A delayed ETA is required." },
+      { status: 400 },
+    );
+  try {
+    const item = (await getCalendarItems()).find(
+      (entry) => entry.id === value.data.itemId,
+    );
+    if (!item) throw new Error("Calendar item not found.");
+    const arrival = new Date(value.data.predictedArrival).getTime();
+    if (
+      !Number.isFinite(arrival) ||
+      Math.abs(arrival - Date.now()) > 24 * 60 * 60_000
+    )
+      throw new Error("Refresh Journey Mode before sharing.");
+    const sent = await sendApprovedLatenessStatus(
+      request,
+      item.title,
+      value.data.predictedArrival,
+      value.data.delayMinutes,
+    );
+    return NextResponse.json({
+      success: true,
+      message: "ETA shared without coordinates.",
+      sent,
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { error: userMessage(error, "ETA could not be shared.") },
+      { status: 422 },
+    );
+  }
+}

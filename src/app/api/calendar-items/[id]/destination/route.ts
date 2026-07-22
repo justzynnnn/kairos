@@ -1,3 +1,34 @@
-import{NextResponse}from"next/server";import{z}from"zod";import{saveDestination}from"@/lib/journey/server";
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { saveDestination } from "@/lib/journey/server";
 import { userMessage } from "@/lib/http";
-const schema=z.object({placeId:z.string().min(1).max(240),name:z.string().min(1).max(240),address:z.string().min(1).max(300),latitude:z.number().min(-90).max(90),longitude:z.number().min(-180).max(180),source:z.enum(["google","seeded_demo"])});export const runtime="nodejs";export async function PATCH(request:Request,{params}:{params:Promise<{id:string}>}){const value=schema.safeParse(await request.json().catch(()=>null));if(!value.success)return NextResponse.json({error:"Choose a valid destination."},{status:400});try{const{id}=await params;await saveDestination(id,value.data);return NextResponse.json({success:true});}catch(error){return NextResponse.json({error:userMessage(error,"Destination could not be saved.")},{status:422});}}
+const schema = z.object({
+  placeId: z.string().min(1).max(240),
+  name: z.string().min(1).max(240),
+  address: z.string().min(1).max(300),
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  source: z.enum(["google", "seeded_demo"]),
+});
+export const runtime = "nodejs";
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const value = schema.safeParse(await request.json().catch(() => null));
+  if (!value.success)
+    return NextResponse.json(
+      { error: "Choose a valid destination." },
+      { status: 400 },
+    );
+  try {
+    const { id } = await params;
+    await saveDestination(id, value.data);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json(
+      { error: userMessage(error, "Destination could not be saved.") },
+      { status: 422 },
+    );
+  }
+}

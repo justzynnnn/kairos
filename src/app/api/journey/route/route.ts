@@ -1,7 +1,60 @@
-import{NextResponse}from"next/server";import{z}from"zod";import{computeJourney}from"@/lib/journey/server";
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { computeJourney } from "@/lib/journey/server";
 import { userMessage } from "@/lib/http";
-import { getCalendarItems,getViewer } from "@/lib/data";
+import { getCalendarItems, getViewer } from "@/lib/data";
 import { repairTrafficDisruption } from "@/lib/repair/traffic-server";
 import { isSupabaseConfigured } from "@/lib/env";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-const schema=z.object({itemId:z.string().min(1).max(100),latitude:z.number().min(-90).max(90).nullable().optional(),longitude:z.number().min(-180).max(180).nullable().optional(),demo:z.boolean().default(false),journeySessionId:z.string().uuid().optional()}).refine((v)=>(v.latitude==null)===(v.longitude==null));export const runtime="nodejs";export const maxDuration=30;export async function POST(request:Request){const value=schema.safeParse(await request.json().catch(()=>null));if(!value.success)return NextResponse.json({error:"Location data is invalid."},{status:400});try{const origin=value.data.latitude==null?null:{latitude:value.data.latitude,longitude:value.data.longitude!},journey=await computeJourney(value.data.itemId,origin,value.data.demo);let repair=null;if(value.data.journeySessionId&&journey.delayMinutes>=5){const[viewer,items]=await Promise.all([getViewer(),getCalendarItems()]);repair=await repairTrafficDisruption({supabase:isSupabaseConfigured()?await createServerSupabaseClient():null,viewer,items,journey,journeySessionId:value.data.journeySessionId});}return NextResponse.json({journey,repair});}catch(error){return NextResponse.json({error:userMessage(error,"Route unavailable.")},{status:422});}}
+const schema = z
+  .object({
+    itemId: z.string().min(1).max(100),
+    latitude: z.number().min(-90).max(90).nullable().optional(),
+    longitude: z.number().min(-180).max(180).nullable().optional(),
+    demo: z.boolean().default(false),
+    journeySessionId: z.string().uuid().optional(),
+  })
+  .refine((v) => (v.latitude == null) === (v.longitude == null));
+export const runtime = "nodejs";
+export const maxDuration = 30;
+export async function POST(request: Request) {
+  const value = schema.safeParse(await request.json().catch(() => null));
+  if (!value.success)
+    return NextResponse.json(
+      { error: "Location data is invalid." },
+      { status: 400 },
+    );
+  try {
+    const origin =
+        value.data.latitude == null
+          ? null
+          : { latitude: value.data.latitude, longitude: value.data.longitude! },
+      journey = await computeJourney(
+        value.data.itemId,
+        origin,
+        value.data.demo,
+      );
+    let repair = null;
+    if (value.data.journeySessionId && journey.delayMinutes >= 5) {
+      const [viewer, items] = await Promise.all([
+        getViewer(),
+        getCalendarItems(),
+      ]);
+      repair = await repairTrafficDisruption({
+        supabase: isSupabaseConfigured()
+          ? await createServerSupabaseClient()
+          : null,
+        viewer,
+        items,
+        journey,
+        journeySessionId: value.data.journeySessionId,
+      });
+    }
+    return NextResponse.json({ journey, repair });
+  } catch (error) {
+    return NextResponse.json(
+      { error: userMessage(error, "Route unavailable.") },
+      { status: 422 },
+    );
+  }
+}

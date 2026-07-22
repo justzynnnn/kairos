@@ -1,22 +1,224 @@
 import type { CalendarItem, Viewer } from "@/lib/types";
 export const DEMO_USER_ID = "11111111-1111-4111-8111-111111111111";
-export const demoViewer: Viewer = { id: DEMO_USER_ID, email: "demo@kairos.app", fullName: "Justin", username: "justin", timezone: "Asia/Manila", activeStart: "07:00", activeEnd: "22:30", travelBufferMinutes:15,avatarUrl: null, preview: true, scheduleVersion: 1 };
-function at(dayOffset: number, hour: number, minute = 0) { const p = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date()).map(x => [x.type, x.value])); const d = new Date(Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day) + dayOffset)); return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,"0")}-${String(d.getUTCDate()).padStart(2,"0")}T${String(hour).padStart(2,"0")}:${String(minute).padStart(2,"0")}:00+08:00`; }
-function item(value: Partial<CalendarItem> & Pick<CalendarItem,"id"|"type"|"title">): CalendarItem { return { userId: DEMO_USER_ID, description: null, startAt: null, endAt: null, dueAt: null, timezone: "Asia/Manila", priority: 3, flexibility: "flexible", earliestStart: null, latestEnd: null, normalDurationMinutes: null, minimumDurationMinutes: null, minimumChunkMinutes: null, canShorten: false, canSplit: false, canSkip: false, locationLabel: null, destinationLatitude:null,destinationLongitude:null,destinationPlaceId:null,destinationResolvedAt:null, relatedDeadlineId: null, dependencyIds: [], category: null, reminderMinutes: 10, status: "scheduled", version: 1, ...value }; }
-function baseDemoCalendarItems(): CalendarItem[] { return [
-  item({ id:"class", type:"event", title:"Systems Design Class", startAt:at(0,10), endAt:at(0,11,30), priority:4, flexibility:"fixed", normalDurationMinutes:90, minimumDurationMinutes:90, locationLabel:"Engineering Building", category:"Class", recurrenceRule:"FREQ=WEEKLY;BYDAY=MO,WE" }),
-  item({ id:"gym", type:"task", title:"Gym Session", startAt:at(0,12,15), endAt:at(0,13,15), earliestStart:at(0,11,30), latestEnd:at(0,18), normalDurationMinutes:60, minimumDurationMinutes:60, locationLabel:"Campus Gym", dependencyIds:["class"], category:"Fitness" }),
-  item({ id:"prep", type:"preparation", title:"Paper Research", startAt:at(0,14), endAt:at(0,15,30), priority:4, earliestStart:at(0,13,30), latestEnd:at(1,19), normalDurationMinutes:90, minimumDurationMinutes:90, minimumChunkMinutes:30, canSplit:true, locationLabel:"Library", relatedDeadlineId:"deadline", category:"Preparation" }),
-  item({ id:"deadline", type:"deadline", title:"Research Paper Due", dueAt:at(3,17), priority:5, flexibility:"fixed", category:"Deadline" }),
-  item({ id:"sync", type:"event", title:"Team Project Sync", startAt:at(1,15), endAt:at(1,16), priority:3, flexibility:"protected", normalDurationMinutes:60, minimumDurationMinutes:60, locationLabel:"Online", category:"Meeting" })
-] }
+export const demoViewer: Viewer = {
+  id: DEMO_USER_ID,
+  email: "demo@kairos.app",
+  fullName: "Justin",
+  username: "justin",
+  timezone: "Asia/Manila",
+  activeStart: "07:00",
+  activeEnd: "22:30",
+  travelBufferMinutes: 15,
+  avatarUrl: null,
+  preview: true,
+  scheduleVersion: 1,
+};
+function at(dayOffset: number, hour: number, minute = 0) {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Manila",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    })
+      .formatToParts(new Date())
+      .map((x) => [x.type, x.value]),
+  );
+  const d = new Date(
+    Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day) + dayOffset),
+  );
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00+08:00`;
+}
+function item(
+  value: Partial<CalendarItem> & Pick<CalendarItem, "id" | "type" | "title">,
+): CalendarItem {
+  return {
+    userId: DEMO_USER_ID,
+    description: null,
+    startAt: null,
+    endAt: null,
+    dueAt: null,
+    timezone: "Asia/Manila",
+    priority: 3,
+    flexibility: "flexible",
+    earliestStart: null,
+    latestEnd: null,
+    normalDurationMinutes: null,
+    minimumDurationMinutes: null,
+    minimumChunkMinutes: null,
+    canShorten: false,
+    canSplit: false,
+    canSkip: false,
+    locationLabel: null,
+    destinationLatitude: null,
+    destinationLongitude: null,
+    destinationPlaceId: null,
+    destinationResolvedAt: null,
+    relatedDeadlineId: null,
+    dependencyIds: [],
+    category: null,
+    reminderMinutes: 10,
+    status: "scheduled",
+    version: 1,
+    ...value,
+  };
+}
+function baseDemoCalendarItems(): CalendarItem[] {
+  return [
+    item({
+      id: "class",
+      type: "event",
+      title: "Systems Design Class",
+      startAt: at(0, 10),
+      endAt: at(0, 11, 30),
+      priority: 4,
+      flexibility: "fixed",
+      normalDurationMinutes: 90,
+      minimumDurationMinutes: 90,
+      locationLabel: "Engineering Building",
+      category: "Class",
+      recurrenceRule: "FREQ=WEEKLY;BYDAY=MO,WE",
+    }),
+    item({
+      id: "gym",
+      type: "task",
+      title: "Gym Session",
+      startAt: at(0, 12, 15),
+      endAt: at(0, 13, 15),
+      earliestStart: at(0, 11, 30),
+      latestEnd: at(0, 18),
+      normalDurationMinutes: 60,
+      minimumDurationMinutes: 60,
+      locationLabel: "Campus Gym",
+      dependencyIds: ["class"],
+      category: "Fitness",
+    }),
+    item({
+      id: "prep",
+      type: "preparation",
+      title: "Paper Research",
+      startAt: at(0, 14),
+      endAt: at(0, 15, 30),
+      priority: 4,
+      earliestStart: at(0, 13, 30),
+      latestEnd: at(1, 19),
+      normalDurationMinutes: 90,
+      minimumDurationMinutes: 90,
+      minimumChunkMinutes: 30,
+      canSplit: true,
+      locationLabel: "Library",
+      relatedDeadlineId: "deadline",
+      category: "Preparation",
+    }),
+    item({
+      id: "deadline",
+      type: "deadline",
+      title: "Research Paper Due",
+      dueAt: at(3, 17),
+      priority: 5,
+      flexibility: "fixed",
+      category: "Deadline",
+    }),
+    item({
+      id: "sync",
+      type: "event",
+      title: "Team Project Sync",
+      startAt: at(1, 15),
+      endAt: at(1, 16),
+      priority: 3,
+      flexibility: "protected",
+      normalDurationMinutes: 60,
+      minimumDurationMinutes: 60,
+      locationLabel: "Online",
+      category: "Meeting",
+    }),
+  ];
+}
 
-type DemoState = { seedDay: string; scheduleVersion: number; items: CalendarItem[] };
-const demoGlobal = globalThis as typeof globalThis & { __kairosDemoState?: DemoState };
-function seedDay() { return at(0, 0).slice(0, 10); }
-function state() { const today=seedDay(); if(!demoGlobal.__kairosDemoState||demoGlobal.__kairosDemoState.seedDay!==today) demoGlobal.__kairosDemoState={seedDay:today,scheduleVersion:1,items:baseDemoCalendarItems()}; return demoGlobal.__kairosDemoState; }
-export function getDemoCalendarItems(): CalendarItem[] { return structuredClone(state().items); }
-export function getDemoScheduleVersion() { return state().scheduleVersion; }
-export function replaceDemoCalendarItems(items: CalendarItem[], expectedVersion: number) { const current=state(); if(current.scheduleVersion!==expectedVersion) return false; current.items=structuredClone(items); current.scheduleVersion++; return true; }
-export function resetDemoCalendar() { demoGlobal.__kairosDemoState={seedDay:seedDay(),scheduleVersion:1,items:baseDemoCalendarItems()}; }
-export function mapCalendarRow(row: Record<string, unknown>): CalendarItem { return { id:String(row.id), userId:String(row.user_id), type:row.item_type as CalendarItem["type"], title:String(row.title), description:(row.description as string|null)??null, startAt:(row.start_at as string|null)??null, endAt:(row.end_at as string|null)??null, dueAt:(row.due_at as string|null)??null, timezone:String(row.timezone), priority:Number(row.priority), flexibility:row.flexibility as CalendarItem["flexibility"], earliestStart:(row.earliest_start as string|null)??null, latestEnd:(row.latest_end as string|null)??null, normalDurationMinutes:(row.normal_duration_minutes as number|null)??null, minimumDurationMinutes:(row.minimum_duration_minutes as number|null)??null, minimumChunkMinutes:(row.minimum_chunk_minutes as number|null)??null, canShorten:Boolean(row.can_shorten), canSplit:Boolean(row.can_split), canSkip:Boolean(row.can_skip), locationLabel:(row.location_label as string|null)??null,destinationLatitude:(row.destination_latitude as number|null)??null,destinationLongitude:(row.destination_longitude as number|null)??null,destinationPlaceId:(row.destination_place_id as string|null)??null,destinationResolvedAt:(row.destination_resolved_at as string|null)??null, recurrenceRule:(row.recurrence_rule as string|null)??null, relatedDeadlineId:(row.related_deadline_id as string|null)??null, dependencyIds:Array.isArray(row.dependency_ids)?row.dependency_ids.map(String):[], category:(row.category as string|null)??null, reminderMinutes:(row.reminder_minutes as number|null)??10, status:row.status as CalendarItem["status"], version:Number(row.version) }; }
+type DemoState = {
+  seedDay: string;
+  scheduleVersion: number;
+  items: CalendarItem[];
+};
+const demoGlobal = globalThis as typeof globalThis & {
+  __kairosDemoState?: DemoState;
+};
+function seedDay() {
+  return at(0, 0).slice(0, 10);
+}
+function state() {
+  const today = seedDay();
+  if (
+    !demoGlobal.__kairosDemoState ||
+    demoGlobal.__kairosDemoState.seedDay !== today
+  )
+    demoGlobal.__kairosDemoState = {
+      seedDay: today,
+      scheduleVersion: 1,
+      items: baseDemoCalendarItems(),
+    };
+  return demoGlobal.__kairosDemoState;
+}
+export function getDemoCalendarItems(): CalendarItem[] {
+  return structuredClone(state().items);
+}
+export function getDemoScheduleVersion() {
+  return state().scheduleVersion;
+}
+export function replaceDemoCalendarItems(
+  items: CalendarItem[],
+  expectedVersion: number,
+) {
+  const current = state();
+  if (current.scheduleVersion !== expectedVersion) return false;
+  current.items = structuredClone(items);
+  current.scheduleVersion++;
+  return true;
+}
+export function resetDemoCalendar() {
+  demoGlobal.__kairosDemoState = {
+    seedDay: seedDay(),
+    scheduleVersion: 1,
+    items: baseDemoCalendarItems(),
+  };
+}
+export function mapCalendarRow(row: Record<string, unknown>): CalendarItem {
+  return {
+    id: String(row.id),
+    userId: String(row.user_id),
+    type: row.item_type as CalendarItem["type"],
+    title: String(row.title),
+    description: (row.description as string | null) ?? null,
+    startAt: (row.start_at as string | null) ?? null,
+    endAt: (row.end_at as string | null) ?? null,
+    dueAt: (row.due_at as string | null) ?? null,
+    timezone: String(row.timezone),
+    priority: Number(row.priority),
+    flexibility: row.flexibility as CalendarItem["flexibility"],
+    earliestStart: (row.earliest_start as string | null) ?? null,
+    latestEnd: (row.latest_end as string | null) ?? null,
+    normalDurationMinutes:
+      (row.normal_duration_minutes as number | null) ?? null,
+    minimumDurationMinutes:
+      (row.minimum_duration_minutes as number | null) ?? null,
+    minimumChunkMinutes: (row.minimum_chunk_minutes as number | null) ?? null,
+    canShorten: Boolean(row.can_shorten),
+    canSplit: Boolean(row.can_split),
+    canSkip: Boolean(row.can_skip),
+    locationLabel: (row.location_label as string | null) ?? null,
+    destinationLatitude: (row.destination_latitude as number | null) ?? null,
+    destinationLongitude: (row.destination_longitude as number | null) ?? null,
+    destinationPlaceId: (row.destination_place_id as string | null) ?? null,
+    destinationResolvedAt:
+      (row.destination_resolved_at as string | null) ?? null,
+    recurrenceRule: (row.recurrence_rule as string | null) ?? null,
+    relatedDeadlineId: (row.related_deadline_id as string | null) ?? null,
+    dependencyIds: Array.isArray(row.dependency_ids)
+      ? row.dependency_ids.map(String)
+      : [],
+    category: (row.category as string | null) ?? null,
+    reminderMinutes: (row.reminder_minutes as number | null) ?? 10,
+    status: row.status as CalendarItem["status"],
+    version: Number(row.version),
+  };
+}

@@ -1,25 +1,244 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { resetDemoCalendar, getDemoCalendarItems } from "@/lib/demo-data";
-import { findMeetingOptions, interpretMeetingCommand } from "@/lib/meetings/engine";
-import { actOnPreviewBooking, actOnPreviewMeeting, CHLOE_ID, chloeViewer, createPreviewMeeting, expirePreviewBooking, getPreviewBooking, getPreviewChloeCalendar, listPreviewMeetings, resetPreviewMeetings, revokePreviewBooking } from "@/lib/meetings/preview-store";
+import {
+  findMeetingOptions,
+  interpretMeetingCommand,
+} from "@/lib/meetings/engine";
+import {
+  actOnPreviewBooking,
+  actOnPreviewMeeting,
+  CHLOE_ID,
+  chloeViewer,
+  createPreviewMeeting,
+  expirePreviewBooking,
+  getPreviewBooking,
+  getPreviewChloeCalendar,
+  listPreviewMeetings,
+  resetPreviewMeetings,
+  revokePreviewBooking,
+} from "@/lib/meetings/preview-store";
 import type { CalendarItem } from "@/lib/types";
 
-beforeEach(()=>{resetDemoCalendar();resetPreviewMeetings();});
-describe("Phase 3 meeting intent",()=>{
-  it("keeps find/show commands private and authorizes send verbs",()=>{expect(interpretMeetingCommand("Find 60 minutes with Chloe next week").mode).toBe("draft");expect(interpretMeetingCommand("Schedule a 60 minute review with Chloe next week").mode).toBe("send");});
-  it("keeps the requested meeting subject",()=>{expect(interpretMeetingCommand("Schedule a 30 minute design review with guest@example.com tomorrow").title).toBe("design review");});
-  it("asks only for essential missing participant and duration",()=>{expect(interpretMeetingCommand("Find a meeting next week").ambiguity).toMatch(/who should join.*duration/i);});
-  it("intersects active hours across different timezones",()=>{const organizer={...chloeViewer,id:"organizer",timezone:"Asia/Manila",activeStart:"07:00",activeEnd:"22:30"};const recipient={timezone:"America/New_York",activeStart:"09:00",activeEnd:"17:00"};const options=findMeetingOptions(organizer,recipient,[],[],"2026-07-19T00:00:00+08:00","2026-07-21T23:30:00+08:00",60);expect(options.length).toBeGreaterThan(0);for(const option of options){const nyHour=Number(new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",hour:"2-digit",hourCycle:"h23"}).format(new Date(option.startAt)));expect(nyHour).toBeGreaterThanOrEqual(9);expect(nyHour).toBeLessThan(17);}});
-  it("returns free/busy options without leaking event titles",()=>{const privateItem={...getDemoCalendarItems()[0],title:"PRIVATE TITLE"} as CalendarItem;const options=findMeetingOptions(chloeViewer,chloeViewer,[privateItem],[],"2026-07-19T00:00:00+08:00","2026-07-20T23:30:00+08:00",60);expect(JSON.stringify(options)).not.toContain("PRIVATE TITLE");});
+beforeEach(() => {
+  resetDemoCalendar();
+  resetPreviewMeetings();
+});
+describe("Phase 3 meeting intent", () => {
+  it("keeps find/show commands private and authorizes send verbs", () => {
+    expect(
+      interpretMeetingCommand("Find 60 minutes with Chloe next week").mode,
+    ).toBe("draft");
+    expect(
+      interpretMeetingCommand(
+        "Schedule a 60 minute review with Chloe next week",
+      ).mode,
+    ).toBe("send");
+  });
+  it("keeps the requested meeting subject", () => {
+    expect(
+      interpretMeetingCommand(
+        "Schedule a 30 minute design review with guest@example.com tomorrow",
+      ).title,
+    ).toBe("design review");
+  });
+  it("asks only for essential missing participant and duration", () => {
+    expect(
+      interpretMeetingCommand("Find a meeting next week").ambiguity,
+    ).toMatch(/who should join.*duration/i);
+  });
+  it("intersects active hours across different timezones", () => {
+    const organizer = {
+      ...chloeViewer,
+      id: "organizer",
+      timezone: "Asia/Manila",
+      activeStart: "07:00",
+      activeEnd: "22:30",
+    };
+    const recipient = {
+      timezone: "America/New_York",
+      activeStart: "09:00",
+      activeEnd: "17:00",
+    };
+    const options = findMeetingOptions(
+      organizer,
+      recipient,
+      [],
+      [],
+      "2026-07-19T00:00:00+08:00",
+      "2026-07-21T23:30:00+08:00",
+      60,
+    );
+    expect(options.length).toBeGreaterThan(0);
+    for (const option of options) {
+      const nyHour = Number(
+        new Intl.DateTimeFormat("en-US", {
+          timeZone: "America/New_York",
+          hour: "2-digit",
+          hourCycle: "h23",
+        }).format(new Date(option.startAt)),
+      );
+      expect(nyHour).toBeGreaterThanOrEqual(9);
+      expect(nyHour).toBeLessThan(17);
+    }
+  });
+  it("returns free/busy options without leaking event titles", () => {
+    const privateItem = {
+      ...getDemoCalendarItems()[0],
+      title: "PRIVATE TITLE",
+    } as CalendarItem;
+    const options = findMeetingOptions(
+      chloeViewer,
+      chloeViewer,
+      [privateItem],
+      [],
+      "2026-07-19T00:00:00+08:00",
+      "2026-07-20T23:30:00+08:00",
+      60,
+    );
+    expect(JSON.stringify(options)).not.toContain("PRIVATE TITLE");
+  });
 });
 
-describe("Phase 3 meeting state machine",()=>{
-  it("creates matching events only after the sender's final confirmation",()=>{const created=createPreviewMeeting("Schedule a 60 minute Strategy Alignment with Chloe next week");expect(created.status).toBe("meeting");if(created.status!=="meeting")return;const meeting=created.meeting;expect(meeting.state).toBe("options_sent");expect(getDemoCalendarItems().some((item)=>item.title==="Strategy Alignment")).toBe(false);const chloe=listPreviewMeetings(CHLOE_ID)[0];const accepted=actOnPreviewMeeting(meeting.id,CHLOE_ID,"accept",{optionId:chloe.options[0].id});expect(accepted.state).toBe("awaiting_sender_confirmation");expect(getDemoCalendarItems().some((item)=>item.title==="Strategy Alignment")).toBe(false);const confirmed=actOnPreviewMeeting(meeting.id,meeting.createdBy,"confirm");expect(confirmed.state).toBe("confirmed");const justinEvent=getDemoCalendarItems().find((item)=>item.title==="Strategy Alignment")!,chloeEvent=getPreviewChloeCalendar().find((item)=>item.title==="Strategy Alignment")!;expect(justinEvent.startAt).toBe(chloeEvent.startAt);expect(justinEvent.endAt).toBe(chloeEvent.endAt);});
-  it("counteroffers create a new version and preserve prior options",()=>{const created=createPreviewMeeting("Schedule a 60 minute Strategy Alignment with Chloe next week");if(created.status!=="meeting")throw new Error("meeting not created");const before=created.meeting.options.length,version=created.meeting.version;const counterStart=created.meeting.options[2].startAt;const updated=actOnPreviewMeeting(created.meeting.id,CHLOE_ID,"counter",{counterStart});expect(updated.options).toHaveLength(before+1);expect(updated.version).toBe(version+1);expect(updated.options.slice(0,before).map((option)=>option.id)).toEqual(created.meeting.options.map((option)=>option.id));expect(updated.state).toBe("awaiting_sender_confirmation");});
-  it("rejects double and stale responses",()=>{const created=createPreviewMeeting("Schedule a 60 minute Strategy Alignment with Chloe next week");if(created.status!=="meeting")throw new Error("meeting not created");actOnPreviewMeeting(created.meeting.id,CHLOE_ID,"accept",{optionId:created.meeting.options[0].id});expect(()=>actOnPreviewMeeting(created.meeting.id,CHLOE_ID,"decline")).toThrow(/not allowed/i);});
-  it("allows the recipient to decline an open request",()=>{const created=createPreviewMeeting("Schedule a 60 minute Strategy Alignment with Chloe next week");if(created.status!=="meeting")throw new Error("meeting not created");expect(actOnPreviewMeeting(created.meeting.id,CHLOE_ID,"decline").state).toBe("declined");});
-  it("does not reveal a meeting to an unrelated account",()=>{createPreviewMeeting("Schedule a 60 minute Strategy Alignment with Chloe next week");expect(listPreviewMeetings("33333333-3333-4333-8333-333333333333")).toHaveLength(0);});
-  it("creates a functional external link without exposing schedules",()=>{const created=createPreviewMeeting("Schedule a 30 minute review with guest@example.com tomorrow");if(created.status!=="meeting")throw new Error("meeting not created");expect(created.meeting.bookingPath).toMatch(/^\/book\//);const token=created.meeting.bookingPath!.split("/").pop()!,booking=getPreviewBooking(token)!;expect(JSON.stringify(booking)).not.toMatch(/Systems Design|Client Review|Paper Research/);const response=actOnPreviewBooking(token,"accept",{optionId:booking.options[0].id});expect(response.state).toBe("awaiting_sender_confirmation");expect(()=>actOnPreviewBooking(token,"decline",{})).toThrow(/no longer awaiting/i);});
-  it("private drafts send nothing until the organizer explicitly sends",()=>{const created=createPreviewMeeting("Find 60 minutes with Chloe next week");if(created.status!=="meeting")throw new Error("meeting not created");expect(created.meeting.state).toBe("draft");expect(created.meeting.deliveries).toHaveLength(0);const sent=actOnPreviewMeeting(created.meeting.id,created.meeting.createdBy,"send");expect(sent.state).toBe("options_sent");expect(sent.deliveries[0].status).toBe("delivered");});
-  it("rejects expired and revoked guest links",()=>{const expired=createPreviewMeeting("Schedule a 30 minute review with expired@example.com tomorrow");if(expired.status!=="meeting")throw new Error("meeting not created");const expiredToken=expired.meeting.bookingPath!.split("/").pop()!;expirePreviewBooking(expiredToken);expect(getPreviewBooking(expiredToken)).toBeNull();expect(()=>actOnPreviewBooking(expiredToken,"decline",{})).toThrow(/expired|revoked/i);const revoked=createPreviewMeeting("Schedule a 30 minute review with revoked@example.com tomorrow");if(revoked.status!=="meeting")throw new Error("meeting not created");const revokedToken=revoked.meeting.bookingPath!.split("/").pop()!;revokePreviewBooking(revokedToken);expect(getPreviewBooking(revokedToken)).toBeNull();});
+describe("Phase 3 meeting state machine", () => {
+  it("creates matching events only after the sender's final confirmation", () => {
+    const created = createPreviewMeeting(
+      "Schedule a 60 minute Strategy Alignment with Chloe next week",
+    );
+    expect(created.status).toBe("meeting");
+    if (created.status !== "meeting") return;
+    const meeting = created.meeting;
+    expect(meeting.state).toBe("options_sent");
+    expect(
+      getDemoCalendarItems().some(
+        (item) => item.title === "Strategy Alignment",
+      ),
+    ).toBe(false);
+    const chloe = listPreviewMeetings(CHLOE_ID)[0];
+    const accepted = actOnPreviewMeeting(meeting.id, CHLOE_ID, "accept", {
+      optionId: chloe.options[0].id,
+    });
+    expect(accepted.state).toBe("awaiting_sender_confirmation");
+    expect(
+      getDemoCalendarItems().some(
+        (item) => item.title === "Strategy Alignment",
+      ),
+    ).toBe(false);
+    const confirmed = actOnPreviewMeeting(
+      meeting.id,
+      meeting.createdBy,
+      "confirm",
+    );
+    expect(confirmed.state).toBe("confirmed");
+    const justinEvent = getDemoCalendarItems().find(
+        (item) => item.title === "Strategy Alignment",
+      )!,
+      chloeEvent = getPreviewChloeCalendar().find(
+        (item) => item.title === "Strategy Alignment",
+      )!;
+    expect(justinEvent.startAt).toBe(chloeEvent.startAt);
+    expect(justinEvent.endAt).toBe(chloeEvent.endAt);
+  });
+  it("counteroffers create a new version and preserve prior options", () => {
+    const created = createPreviewMeeting(
+      "Schedule a 60 minute Strategy Alignment with Chloe next week",
+    );
+    if (created.status !== "meeting") throw new Error("meeting not created");
+    const before = created.meeting.options.length,
+      version = created.meeting.version;
+    const counterStart = created.meeting.options[2].startAt;
+    const updated = actOnPreviewMeeting(
+      created.meeting.id,
+      CHLOE_ID,
+      "counter",
+      { counterStart },
+    );
+    expect(updated.options).toHaveLength(before + 1);
+    expect(updated.version).toBe(version + 1);
+    expect(updated.options.slice(0, before).map((option) => option.id)).toEqual(
+      created.meeting.options.map((option) => option.id),
+    );
+    expect(updated.state).toBe("awaiting_sender_confirmation");
+  });
+  it("rejects double and stale responses", () => {
+    const created = createPreviewMeeting(
+      "Schedule a 60 minute Strategy Alignment with Chloe next week",
+    );
+    if (created.status !== "meeting") throw new Error("meeting not created");
+    actOnPreviewMeeting(created.meeting.id, CHLOE_ID, "accept", {
+      optionId: created.meeting.options[0].id,
+    });
+    expect(() =>
+      actOnPreviewMeeting(created.meeting.id, CHLOE_ID, "decline"),
+    ).toThrow(/not allowed/i);
+  });
+  it("allows the recipient to decline an open request", () => {
+    const created = createPreviewMeeting(
+      "Schedule a 60 minute Strategy Alignment with Chloe next week",
+    );
+    if (created.status !== "meeting") throw new Error("meeting not created");
+    expect(
+      actOnPreviewMeeting(created.meeting.id, CHLOE_ID, "decline").state,
+    ).toBe("declined");
+  });
+  it("does not reveal a meeting to an unrelated account", () => {
+    createPreviewMeeting(
+      "Schedule a 60 minute Strategy Alignment with Chloe next week",
+    );
+    expect(
+      listPreviewMeetings("33333333-3333-4333-8333-333333333333"),
+    ).toHaveLength(0);
+  });
+  it("creates a functional external link without exposing schedules", () => {
+    const created = createPreviewMeeting(
+      "Schedule a 30 minute review with guest@example.com tomorrow",
+    );
+    if (created.status !== "meeting") throw new Error("meeting not created");
+    expect(created.meeting.bookingPath).toMatch(/^\/book\//);
+    const token = created.meeting.bookingPath!.split("/").pop()!,
+      booking = getPreviewBooking(token)!;
+    expect(JSON.stringify(booking)).not.toMatch(
+      /Systems Design|Client Review|Paper Research/,
+    );
+    const response = actOnPreviewBooking(token, "accept", {
+      optionId: booking.options[0].id,
+    });
+    expect(response.state).toBe("awaiting_sender_confirmation");
+    expect(() => actOnPreviewBooking(token, "decline", {})).toThrow(
+      /no longer awaiting/i,
+    );
+  });
+  it("private drafts send nothing until the organizer explicitly sends", () => {
+    const created = createPreviewMeeting(
+      "Find 60 minutes with Chloe next week",
+    );
+    if (created.status !== "meeting") throw new Error("meeting not created");
+    expect(created.meeting.state).toBe("draft");
+    expect(created.meeting.deliveries).toHaveLength(0);
+    const sent = actOnPreviewMeeting(
+      created.meeting.id,
+      created.meeting.createdBy,
+      "send",
+    );
+    expect(sent.state).toBe("options_sent");
+    expect(sent.deliveries[0].status).toBe("delivered");
+  });
+  it("rejects expired and revoked guest links", () => {
+    const expired = createPreviewMeeting(
+      "Schedule a 30 minute review with expired@example.com tomorrow",
+    );
+    if (expired.status !== "meeting") throw new Error("meeting not created");
+    const expiredToken = expired.meeting.bookingPath!.split("/").pop()!;
+    expirePreviewBooking(expiredToken);
+    expect(getPreviewBooking(expiredToken)).toBeNull();
+    expect(() => actOnPreviewBooking(expiredToken, "decline", {})).toThrow(
+      /expired|revoked/i,
+    );
+    const revoked = createPreviewMeeting(
+      "Schedule a 30 minute review with revoked@example.com tomorrow",
+    );
+    if (revoked.status !== "meeting") throw new Error("meeting not created");
+    const revokedToken = revoked.meeting.bookingPath!.split("/").pop()!;
+    revokePreviewBooking(revokedToken);
+    expect(getPreviewBooking(revokedToken)).toBeNull();
+  });
 });

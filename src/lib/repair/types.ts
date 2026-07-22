@@ -1,8 +1,17 @@
 import type { CalendarItem } from "@/lib/types";
 
-export type RepairTrigger = "fix_day" | "woke_late" | "running_behind" | "missed_start" | "traffic";
+export type RepairTrigger =
+  | "fix_day"
+  | "woke_late"
+  | "running_behind"
+  | "missed_start"
+  | "traffic";
 export type RepairOperationKind = "move" | "shorten" | "split" | "skip";
-export type RepairSegment = { startAt: string; endAt: string; durationMinutes: number };
+export type RepairSegment = {
+  startAt: string;
+  endAt: string;
+  durationMinutes: number;
+};
 export type RepairOperation = {
   id: string;
   itemId: string;

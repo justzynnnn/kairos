@@ -3,7 +3,11 @@ import "server-only";
 import OpenAI from "openai";
 import { z } from "zod";
 import { getServerEnv } from "@/lib/server-env";
-import { schedulingIntentSchema, type DeadlinePreparation, type SchedulingIntent } from "@/lib/scheduling/schema";
+import {
+  schedulingIntentSchema,
+  type DeadlinePreparation,
+  type SchedulingIntent,
+} from "@/lib/scheduling/schema";
 import type { CalendarItem, Preference, Viewer } from "@/lib/types";
 
 function compactSchedule(items: CalendarItem[]) {
@@ -52,7 +56,11 @@ export async function interpretWithOpenAI({
 }): Promise<SchedulingIntent> {
   const env = getServerEnv();
   if (!env.OPENAI_API_KEY) throw new Error("OpenAI is not configured.");
-  const client = new OpenAI({ apiKey: env.OPENAI_API_KEY, maxRetries: 0, timeout: 20_000 });
+  const client = new OpenAI({
+    apiKey: env.OPENAI_API_KEY,
+    maxRetries: 0,
+    timeout: 20_000,
+  });
   const schema = z.toJSONSchema(schedulingIntentSchema, { target: "draft-7" });
   const context = JSON.stringify({
     current_time: now.toISOString(),
@@ -98,20 +106,28 @@ Context: ${context}`;
           },
         },
       });
-      const parsed = schedulingIntentSchema.safeParse(JSON.parse(response.output_text));
+      const parsed = schedulingIntentSchema.safeParse(
+        JSON.parse(response.output_text),
+      );
       if (parsed.success) return parsed.data;
       lastError = parsed.error;
     } catch (error) {
       lastError = error;
     }
   }
-  throw new Error("The AI response could not be validated.", { cause: lastError });
+  throw new Error("The AI response could not be validated.", {
+    cause: lastError,
+  });
 }
 
 export async function transcribeAudio(file: File) {
   const env = getServerEnv();
   if (!env.OPENAI_API_KEY) throw new Error("OpenAI is not configured.");
-  const client = new OpenAI({ apiKey: env.OPENAI_API_KEY, maxRetries: 1, timeout: 30_000 });
+  const client = new OpenAI({
+    apiKey: env.OPENAI_API_KEY,
+    maxRetries: 1,
+    timeout: 30_000,
+  });
   const transcription = await client.audio.transcriptions.create({
     file,
     model: env.OPENAI_TRANSCRIPTION_MODEL,

@@ -1,5 +1,56 @@
 import { NextResponse } from "next/server";
-import { ensureAutomatedConversationUpdates, getConversation, getConversationContacts } from "@/lib/conversations/server";
-import { userMessage } from "@/lib/http";
-export const runtime="nodejs",dynamic="force-dynamic";
-export async function GET(request:Request){try{const contacts=await getConversationContacts(request),userId=new URL(request.url).searchParams.get("userId");if(!userId)return NextResponse.json({contacts,conversation:null});if(!contacts.some((contact)=>contact.id===userId))return NextResponse.json({error:"You can only message accepted friends."},{status:403});const conversation=await getConversation(request,userId);if(!conversation)return NextResponse.json({error:"This chat is unavailable."},{status:403});await ensureAutomatedConversationUpdates(request,conversation);return NextResponse.json({contacts,conversation});}catch(error){return NextResponse.json({error:userMessage(error,"Inbox could not be loaded.")},{status:500});}}
+import { z } from "zod";
+import {
+  getConversationContacts,
+  startConversation,
+} from "@/lib/conversations/server";
+import { errorStatus, userMessage } from "@/lib/http";
+import {
+  allowPersistentRequest,
+  clientKey,
+  tooManyRequests,
+} from "@/lib/rate-limit-server";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const createSchema = z.object({ userId: z.string().uuid() });
+
+export async function GET(request: Request) {
+  try {
+    return NextResponse.json({
+      contacts: await getConversationContacts(request),
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { error: userMessage(error, "Conversations could not be loaded.") },
+      { status: errorStatus(error) },
+    );
+  }
+}
+
+export async function POST(request: Request) {
+  if (
+    !(await allowPersistentRequest(
+      clientKey(request.headers, "conversation-create"),
+      20,
+    ))
+  )
+    return tooManyRequests();
+  const parsed = createSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success)
+    return NextResponse.json(
+      { error: "Choose a valid friend." },
+      { status: 400 },
+    );
+
+  try {
+    const conversationId = await startConversation(request, parsed.data.userId);
+    return NextResponse.json({ conversationId }, { status: 201 });
+  } catch (error) {
+    return NextResponse.json(
+      { error: userMessage(error, "Conversation could not be started.") },
+      { status: errorStatus(error, 403) },
+    );
+  }
+}

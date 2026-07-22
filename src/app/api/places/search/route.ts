@@ -1,2 +1,33 @@
-import{NextResponse}from"next/server";import{z}from"zod";import{allowRequest,clientKey,tooManyRequests}from"@/lib/rate-limit";import{searchPlaces}from"@/lib/journey/server";
-export const runtime="nodejs";export const maxDuration=30;export async function GET(request:Request){if(!allowRequest(clientKey(request.headers,"places"),30))return tooManyRequests();const parsed=z.string().trim().min(2).max(180).safeParse(new URL(request.url).searchParams.get("q"));if(!parsed.success)return NextResponse.json({error:"Enter at least two characters."},{status:400});try{return NextResponse.json({places:await searchPlaces(parsed.data)});}catch{return NextResponse.json({error:"Destination search is unavailable."},{status:503});}}
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import {
+  allowPersistentRequest,
+  clientKey,
+  tooManyRequests,
+} from "@/lib/rate-limit-server";
+import { searchPlaces } from "@/lib/journey/server";
+export const runtime = "nodejs";
+export const maxDuration = 30;
+export async function GET(request: Request) {
+  if (!(await allowPersistentRequest(clientKey(request.headers, "places"), 30)))
+    return tooManyRequests();
+  const parsed = z
+    .string()
+    .trim()
+    .min(2)
+    .max(180)
+    .safeParse(new URL(request.url).searchParams.get("q"));
+  if (!parsed.success)
+    return NextResponse.json(
+      { error: "Enter at least two characters." },
+      { status: 400 },
+    );
+  try {
+    return NextResponse.json({ places: await searchPlaces(parsed.data) });
+  } catch {
+    return NextResponse.json(
+      { error: "Destination search is unavailable." },
+      { status: 503 },
+    );
+  }
+}

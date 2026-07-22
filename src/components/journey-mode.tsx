@@ -1,29 +1,578 @@
 "use client";
-import { useEffect,useRef,useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle,Check,Clock3,LoaderCircle,LocateFixed,MapPin,Navigation,Search,Send,Square } from "lucide-react";
-import type { PlaceResult,JourneyStatus } from "@/lib/journey/types";
+import {
+  AlertTriangle,
+  Check,
+  Clock3,
+  LoaderCircle,
+  LocateFixed,
+  MapPin,
+  Navigation,
+  Search,
+  Send,
+  Square,
+} from "lucide-react";
+import type { PlaceResult, JourneyStatus } from "@/lib/journey/types";
 import type { RepairIncident } from "@/lib/repair/incidents-types";
 import type { CalendarItem } from "@/lib/types";
-import { KairosTripMonitor,nativeTripMonitoringAvailable } from "@/lib/journey/native";
+import {
+  KairosTripMonitor,
+  nativeTripMonitoringAvailable,
+} from "@/lib/journey/native";
 import { publishRepairIncident } from "@/lib/repair/client-events";
 
-type Session={id:string;token:string|null;expiresAt:string|null;backgroundCapable:boolean};
-function time(value:string){return new Intl.DateTimeFormat("en",{hour:"numeric",minute:"2-digit"}).format(new Date(value));}
-export function JourneyMode({item}:{item:CalendarItem}){
-  const router=useRouter(),native=nativeTripMonitoringAvailable(),[open,setOpen]=useState(false),[query,setQuery]=useState(item.locationLabel??""),[places,setPlaces]=useState<PlaceResult[]>([]),[destinationReady,setDestinationReady]=useState(item.destinationLatitude!=null),[journey,setJourney]=useState<JourneyStatus|null>(null),[busy,setBusy]=useState(false),[watching,setWatching]=useState(false),[manualOpen,setManualOpen]=useState(false),[manualDelay,setManualDelay]=useState(15),[error,setError]=useState<string|null>(null),[notice,setNotice]=useState<string|null>(null),[lastOrigin,setLastOrigin]=useState<{latitude:number;longitude:number}|null>(null),lastUpdate=useRef(0),watchId=useRef<number|null>(null),session=useRef<Session|null>(null);
-  useEffect(()=>{if(!native)return;let update:{remove:()=>Promise<void>}|null=null,tap:{remove:()=>Promise<void>}|null=null;void KairosTripMonitor.getState().then((state)=>{if(state.active&&state.itemId===item.id)setWatching(true);}).catch(()=>{});void KairosTripMonitor.addListener("journeyUpdate",(event)=>{if(event.journey)setJourney(event.journey);if(event.repair){publishRepairIncident(event.repair);router.refresh();}if(event.error)setError(event.error);if(event.stopped||event.arrived)setWatching(false);}).then((handle)=>{update=handle});void KairosTripMonitor.addListener("repairNotificationTapped",(event)=>{window.location.assign(event.incidentId?`/?incident=${encodeURIComponent(event.incidentId)}`:"/");}).then((handle)=>{tap=handle});return()=>{void update?.remove();void tap?.remove();};},[item.id,native,router]);
-  useEffect(()=>()=>{if(!native&&watchId.current!=null)navigator.geolocation?.clearWatch(watchId.current);},[native]);
-  async function createSession(){if(session.current)return session.current;const response=await fetch("/api/journey/sessions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({itemId:item.id})}),data=await response.json();if(!response.ok)throw new Error(data.error??"Journey could not be started.");session.current=data.session as Session;return session.current;}
-  async function endSession(status:"stopped"|"arrived"|"expired"="stopped"){const current=session.current;session.current=null;if(current)await fetch(`/api/journey/sessions/${current.id}`,{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({status}),keepalive:true}).catch(()=>{});}
-  async function search(){setBusy(true);setError(null);try{const response=await fetch(`/api/places/search?q=${encodeURIComponent(query)}`),data=await response.json();if(!response.ok)throw new Error(data.error);setPlaces(data.places);}catch(reason){setError(reason instanceof Error?reason.message:"Search unavailable.");}finally{setBusy(false)}}
-  async function choose(place:PlaceResult){setBusy(true);setError(null);try{const response=await fetch(`/api/calendar-items/${item.id}/destination`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(place)}),data=await response.json();if(!response.ok)throw new Error(data.error);setDestinationReady(true);setQuery(place.address);setPlaces([]);setNotice(place.source==="seeded_demo"?"Seeded demo destination selected.":"Destination saved.");router.refresh();}catch(reason){setError(reason instanceof Error?reason.message:"Destination could not be saved.");}finally{setBusy(false)}}
-  function acceptRepair(repair:RepairIncident|null|undefined){if(!repair)return;publishRepairIncident(repair);setNotice("Traffic changed your schedule. Review or undo the repair on Home.");router.refresh();}
-  async function route(origin:{latitude:number;longitude:number}|null,demo=false){setBusy(true);setError(null);try{const active=demo?null:await createSession(),response=await fetch("/api/journey/route",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({itemId:item.id,latitude:origin?.latitude??null,longitude:origin?.longitude??null,demo,journeySessionId:active?.id})}),data=await response.json();if(!response.ok)throw new Error(data.error);setJourney(data.journey);acceptRepair(data.repair);lastUpdate.current=Date.now();if(data.journey?.distanceMeters<=100&&watching)await stop("arrived");}catch(reason){setError(reason instanceof Error?reason.message:"Route unavailable.");}finally{setBusy(false)}}
-  async function start(){setBusy(true);setError(null);setNotice(null);try{const active=await createSession();if(native&&active.backgroundCapable&&active.token&&item.destinationLatitude!=null&&item.destinationLongitude!=null){const permissions=await KairosTripMonitor.requestPermissions();if(permissions.location!=="granted")throw new Error("Background traffic monitoring needs location permission.");await KairosTripMonitor.startTrip({sessionId:active.id,token:active.token,endpoint:`${window.location.origin}/api/journey/background`,itemId:item.id,destinationLatitude:item.destinationLatitude,destinationLongitude:item.destinationLongitude,expiresAt:active.expiresAt!});setWatching(true);setNotice(permissions.notifications==="granted"?"Background traffic monitoring is active for this trip.":"Traffic monitoring is active, but repair notifications are off.");return;}if(!navigator.geolocation)throw new Error("Location is unavailable. Use the seeded demo route or report traffic manually.");setWatching(true);watchId.current=navigator.geolocation.watchPosition((position)=>{const origin={latitude:position.coords.latitude,longitude:position.coords.longitude};setLastOrigin(origin);if(!lastUpdate.current||Date.now()-lastUpdate.current>=60_000)void route(origin);},()=>{setWatching(false);setError("Location permission was denied. No coordinates were saved; use the demo route instead.");},{enableHighAccuracy:true,maximumAge:30_000,timeout:15_000});}catch(reason){await endSession();setWatching(false);setError(reason instanceof Error?reason.message:"Journey could not be started.");}finally{setBusy(false)}}
-  async function stop(status:"stopped"|"arrived"|"expired"="stopped"){if(watchId.current!=null)navigator.geolocation.clearWatch(watchId.current);watchId.current=null;if(native)await KairosTripMonitor.stopTrip().catch(()=>{});setWatching(false);await endSession(status);}
-  async function reportTraffic(){setBusy(true);setError(null);try{const active=await createSession(),response=await fetch("/api/repair/traffic",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({itemId:item.id,delayMinutes:manualDelay,journeySessionId:active.id})}),data=await response.json();if(!response.ok)throw new Error(data.error);acceptRepair(data.repair);setManualOpen(false);if(!data.repair)setNotice("No adjustable task needs to move for that delay.");}catch(reason){setError(reason instanceof Error?reason.message:"Traffic repair could not be applied.");}finally{setBusy(false)}}
-  async function share(){if(!journey||journey.delayMinutes<1)return;setBusy(true);setError(null);try{const response=await fetch("/api/journey/share",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({itemId:item.id,predictedArrival:journey.predictedArrival,delayMinutes:journey.delayMinutes})}),data=await response.json();if(!response.ok)throw new Error(data.error);setNotice(data.message);}catch(reason){setError(reason instanceof Error?reason.message:"ETA could not be shared.");}finally{setBusy(false)}}
-  if(!open)return <button type="button" onClick={()=>setOpen(true)} className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg border border-current/20 bg-white/80 px-3 text-xs font-bold text-[var(--navy)] shadow-sm"><Navigation className="size-4"/>Journey</button>;
-  return <div className="mt-3 rounded-xl border border-[var(--outline)] bg-white p-3 text-[var(--ink)] shadow-sm"><div className="flex items-center justify-between gap-2"><p className="font-display text-sm font-semibold text-[var(--navy)]">Journey Mode</p><button type="button" onClick={()=>{if(watching)void stop();setOpen(false)}} className="min-h-10 rounded-lg px-3 text-xs font-bold text-[var(--muted)]">Close</button></div>{!destinationReady&&<div className="mt-3"><label className="text-xs font-bold text-[var(--muted)]">Destination</label><div className="mt-1 flex gap-2"><input value={query} onChange={(event)=>setQuery(event.target.value)} className="min-h-11 min-w-0 flex-1 rounded-xl border border-[var(--outline)] px-3 text-sm"/><button type="button" onClick={()=>void search()} disabled={busy||query.trim().length<2} aria-label="Search destinations" className="btn btn-primary grid size-11 shrink-0 place-items-center"><Search className="size-4"/></button></div>{places.length>0&&<div className="mt-2 grid gap-2">{places.map((place)=><button type="button" key={place.placeId} onClick={()=>void choose(place)} className="min-h-11 rounded-xl border border-[var(--outline)] p-2 text-left text-xs"><strong className="block text-[var(--navy)]">{place.name}</strong>{place.address}<span className="ml-1 text-[var(--gold-deep)]">{place.source==="seeded_demo"?"· Demo result":""}</span></button>)}</div>}</div>}{destinationReady&&<><p className="mt-3 rounded-lg bg-[var(--cyan-soft)] p-2 text-[11px] text-[var(--cyan-deep)]">Monitoring starts only when you tap below and stops when you arrive or end the trip. The iPhone app can continue in the background; the web app must stay open. Origin coordinates are never stored.</p><div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={()=>void(watching?stop():start())} disabled={busy} className="btn btn-primary min-h-11 px-3 text-xs font-bold">{watching?<Square className="size-4 fill-current"/>:<LocateFixed className="size-4"/>}{watching?"Stop trip":native?"Start background Journey":"Use live location"}</button><button type="button" onClick={()=>void route(null,true)} disabled={busy} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--outline)] px-3 text-xs font-bold text-[var(--navy)]"><MapPin className="size-4"/>Use demo route</button>{journey&&lastOrigin&&!watching&&<button type="button" onClick={()=>void route(lastOrigin)} disabled={busy} className="min-h-11 rounded-xl border px-3 text-xs font-bold">Refresh</button>}<button type="button" onClick={()=>setManualOpen((value)=>!value)} disabled={busy} className="min-h-11 rounded-xl border border-[var(--outline)] px-3 text-xs font-bold text-[var(--navy)]">I&apos;m stuck in traffic</button></div></>}{manualOpen&&<div className="mt-3 flex flex-wrap items-end gap-2 rounded-xl bg-[var(--surface-low)] p-3"><label className="grid gap-1 text-xs font-bold text-[var(--navy)]">Expected delay<select value={manualDelay} onChange={(event)=>setManualDelay(Number(event.target.value))} className="min-h-11 rounded-lg border border-[var(--outline)] bg-white px-3 font-normal">{[15,30,45,60,90].map((minutes)=><option key={minutes} value={minutes}>{minutes} minutes</option>)}</select></label><button type="button" disabled={busy} onClick={()=>void reportTraffic()} className="btn btn-primary min-h-11 px-4 text-xs">Repair flexible tasks</button></div>}{busy&&<p role="status" className="mt-3 flex items-center gap-2 text-xs text-[var(--muted)]"><LoaderCircle className="size-4 animate-spin"/>Updating route…</p>}{journey&&<div className="mt-3 rounded-xl bg-[var(--surface-low)] p-3"><div className="flex flex-wrap items-center justify-between gap-2"><p className="font-display text-lg font-semibold text-[var(--navy)]">{journey.durationMinutes} min · {Math.max(.1,journey.distanceMeters/1000).toFixed(1)} km</p><span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase ${journey.source==="google"?"bg-[var(--cyan-soft)] text-[var(--cyan-deep)]":"bg-[var(--gold-soft)] text-[var(--gold-deep)]"}`}>{journey.source==="google"?"Live Google route":"Seeded demo"}</span></div><div className="mt-2 grid gap-1 text-xs sm:grid-cols-2"><p className="flex items-center gap-1"><Clock3 className="size-3"/>Leave by {time(journey.leaveAt)}</p><p>Arrival {time(journey.predictedArrival)}</p></div>{journey.delayMinutes>0&&<div className="mt-3 rounded-lg bg-[#ffdad6] p-3 text-xs text-[#93000a]"><p className="flex items-center gap-2 font-bold"><AlertTriangle className="size-4"/>Predicted {journey.delayMinutes} min late</p><button type="button" onClick={()=>void share()} disabled={busy} className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#93000a] px-3 font-bold text-white"><Send className="size-4"/>Approve & share ETA</button><p className="mt-1">Only status and ETA are sent—never coordinates.</p></div>}<p className="mt-2 text-[10px] text-[var(--muted)]">{journey.accuracyWarning} Updated {time(journey.freshAt)}.</p></div>}{error&&<p role="alert" className="mt-3 text-xs font-semibold text-[var(--error)]">{error}</p>}{notice&&<p role="status" className="mt-3 flex items-center gap-1 text-xs font-semibold text-[var(--success)]"><Check className="size-4"/>{notice}</p>}</div>;
+type Session = {
+  id: string;
+  token: string | null;
+  expiresAt: string | null;
+  backgroundCapable: boolean;
+};
+function time(value: string) {
+  return new Intl.DateTimeFormat("en", {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+export function JourneyMode({ item }: { item: CalendarItem }) {
+  const router = useRouter(),
+    native = nativeTripMonitoringAvailable(),
+    [open, setOpen] = useState(false),
+    [query, setQuery] = useState(item.locationLabel ?? ""),
+    [places, setPlaces] = useState<PlaceResult[]>([]),
+    [destinationReady, setDestinationReady] = useState(
+      item.destinationLatitude != null,
+    ),
+    [journey, setJourney] = useState<JourneyStatus | null>(null),
+    [busy, setBusy] = useState(false),
+    [watching, setWatching] = useState(false),
+    [manualOpen, setManualOpen] = useState(false),
+    [manualDelay, setManualDelay] = useState(15),
+    [error, setError] = useState<string | null>(null),
+    [notice, setNotice] = useState<string | null>(null),
+    [lastOrigin, setLastOrigin] = useState<{
+      latitude: number;
+      longitude: number;
+    } | null>(null),
+    lastUpdate = useRef(0),
+    watchId = useRef<number | null>(null),
+    session = useRef<Session | null>(null);
+  useEffect(() => {
+    if (!native) return;
+    let update: { remove: () => Promise<void> } | null = null,
+      tap: { remove: () => Promise<void> } | null = null;
+    void KairosTripMonitor.getState()
+      .then((state) => {
+        if (state.active && state.itemId === item.id) setWatching(true);
+      })
+      .catch(() => {});
+    void KairosTripMonitor.addListener("journeyUpdate", (event) => {
+      if (event.journey) setJourney(event.journey);
+      if (event.repair) {
+        publishRepairIncident(event.repair);
+        router.refresh();
+      }
+      if (event.error) setError(event.error);
+      if (event.stopped || event.arrived) setWatching(false);
+    }).then((handle) => {
+      update = handle;
+    });
+    void KairosTripMonitor.addListener("repairNotificationTapped", (event) => {
+      window.location.assign(
+        event.incidentId
+          ? `/?incident=${encodeURIComponent(event.incidentId)}`
+          : "/",
+      );
+    }).then((handle) => {
+      tap = handle;
+    });
+    return () => {
+      void update?.remove();
+      void tap?.remove();
+    };
+  }, [item.id, native, router]);
+  useEffect(
+    () => () => {
+      if (!native && watchId.current != null)
+        navigator.geolocation?.clearWatch(watchId.current);
+    },
+    [native],
+  );
+  async function createSession() {
+    if (session.current) return session.current;
+    const response = await fetch("/api/journey/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId: item.id }),
+      }),
+      data = await response.json();
+    if (!response.ok)
+      throw new Error(data.error ?? "Journey could not be started.");
+    session.current = data.session as Session;
+    return session.current;
+  }
+  async function endSession(
+    status: "stopped" | "arrived" | "expired" = "stopped",
+  ) {
+    const current = session.current;
+    session.current = null;
+    if (current)
+      await fetch(`/api/journey/sessions/${current.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+        keepalive: true,
+      }).catch(() => {});
+  }
+  async function search() {
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch(
+          `/api/places/search?q=${encodeURIComponent(query)}`,
+        ),
+        data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      setPlaces(data.places);
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : "Search unavailable.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function choose(place: PlaceResult) {
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch(
+          `/api/calendar-items/${item.id}/destination`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(place),
+          },
+        ),
+        data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      setDestinationReady(true);
+      setQuery(place.address);
+      setPlaces([]);
+      setNotice(
+        place.source === "seeded_demo"
+          ? "Seeded demo destination selected."
+          : "Destination saved.",
+      );
+      router.refresh();
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Destination could not be saved.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  function acceptRepair(repair: RepairIncident | null | undefined) {
+    if (!repair) return;
+    publishRepairIncident(repair);
+    setNotice(
+      "Traffic changed your schedule. Review or undo the repair on Home.",
+    );
+    router.refresh();
+  }
+  async function route(
+    origin: { latitude: number; longitude: number } | null,
+    demo = false,
+  ) {
+    setBusy(true);
+    setError(null);
+    try {
+      const active = demo ? null : await createSession(),
+        response = await fetch("/api/journey/route", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            itemId: item.id,
+            latitude: origin?.latitude ?? null,
+            longitude: origin?.longitude ?? null,
+            demo,
+            journeySessionId: active?.id,
+          }),
+        }),
+        data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      setJourney(data.journey);
+      acceptRepair(data.repair);
+      lastUpdate.current = Date.now();
+      if (data.journey?.distanceMeters <= 100 && watching)
+        await stop("arrived");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Route unavailable.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function start() {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const active = await createSession();
+      if (
+        native &&
+        active.backgroundCapable &&
+        active.token &&
+        item.destinationLatitude != null &&
+        item.destinationLongitude != null
+      ) {
+        const permissions = await KairosTripMonitor.requestPermissions();
+        if (permissions.location !== "granted")
+          throw new Error(
+            "Background traffic monitoring needs location permission.",
+          );
+        await KairosTripMonitor.startTrip({
+          sessionId: active.id,
+          token: active.token,
+          endpoint: `${window.location.origin}/api/journey/background`,
+          itemId: item.id,
+          destinationLatitude: item.destinationLatitude,
+          destinationLongitude: item.destinationLongitude,
+          expiresAt: active.expiresAt!,
+        });
+        setWatching(true);
+        setNotice(
+          permissions.notifications === "granted"
+            ? "Background traffic monitoring is active for this trip."
+            : "Traffic monitoring is active, but repair notifications are off.",
+        );
+        return;
+      }
+      if (!navigator.geolocation)
+        throw new Error(
+          "Location is unavailable. Use the seeded demo route or report traffic manually.",
+        );
+      setWatching(true);
+      watchId.current = navigator.geolocation.watchPosition(
+        (position) => {
+          const origin = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          };
+          setLastOrigin(origin);
+          if (!lastUpdate.current || Date.now() - lastUpdate.current >= 60_000)
+            void route(origin);
+        },
+        () => {
+          setWatching(false);
+          setError(
+            "Location permission was denied. No coordinates were saved; use the demo route instead.",
+          );
+        },
+        { enableHighAccuracy: true, maximumAge: 30_000, timeout: 15_000 },
+      );
+    } catch (reason) {
+      await endSession();
+      setWatching(false);
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Journey could not be started.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function stop(status: "stopped" | "arrived" | "expired" = "stopped") {
+    if (watchId.current != null)
+      navigator.geolocation.clearWatch(watchId.current);
+    watchId.current = null;
+    if (native) await KairosTripMonitor.stopTrip().catch(() => {});
+    setWatching(false);
+    await endSession(status);
+  }
+  async function reportTraffic() {
+    setBusy(true);
+    setError(null);
+    try {
+      const active = await createSession(),
+        response = await fetch("/api/repair/traffic", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            itemId: item.id,
+            delayMinutes: manualDelay,
+            journeySessionId: active.id,
+          }),
+        }),
+        data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      acceptRepair(data.repair);
+      setManualOpen(false);
+      if (!data.repair)
+        setNotice("No adjustable task needs to move for that delay.");
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Traffic repair could not be applied.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function share() {
+    if (!journey || journey.delayMinutes < 1) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/journey/share", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            itemId: item.id,
+            predictedArrival: journey.predictedArrival,
+            delayMinutes: journey.delayMinutes,
+          }),
+        }),
+        data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      setNotice(data.message);
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : "ETA could not be shared.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  if (!open)
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg border border-current/20 bg-white/80 px-3 text-xs font-bold text-[var(--navy)] shadow-sm"
+      >
+        <Navigation className="size-4" />
+        Journey
+      </button>
+    );
+  return (
+    <div className="mt-3 rounded-xl border border-[var(--outline)] bg-white p-3 text-[var(--ink)] shadow-sm">
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-display text-sm font-semibold text-[var(--navy)]">
+          Journey Mode
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            if (watching) void stop();
+            setOpen(false);
+          }}
+          className="min-h-10 rounded-lg px-3 text-xs font-bold text-[var(--muted)]"
+        >
+          Close
+        </button>
+      </div>
+      {!destinationReady && (
+        <div className="mt-3">
+          <label className="text-xs font-bold text-[var(--muted)]">
+            Destination
+          </label>
+          <div className="mt-1 flex gap-2">
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              className="min-h-11 min-w-0 flex-1 rounded-xl border border-[var(--outline)] px-3 text-sm"
+            />
+            <button
+              type="button"
+              onClick={() => void search()}
+              disabled={busy || query.trim().length < 2}
+              aria-label="Search destinations"
+              className="btn btn-primary grid size-11 shrink-0 place-items-center"
+            >
+              <Search className="size-4" />
+            </button>
+          </div>
+          {places.length > 0 && (
+            <div className="mt-2 grid gap-2">
+              {places.map((place) => (
+                <button
+                  type="button"
+                  key={place.placeId}
+                  onClick={() => void choose(place)}
+                  className="min-h-11 rounded-xl border border-[var(--outline)] p-2 text-left text-xs"
+                >
+                  <strong className="block text-[var(--navy)]">
+                    {place.name}
+                  </strong>
+                  {place.address}
+                  <span className="ml-1 text-[var(--gold-deep)]">
+                    {place.source === "seeded_demo" ? "· Demo result" : ""}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {destinationReady && (
+        <>
+          <p className="mt-3 rounded-lg bg-[var(--cyan-soft)] p-2 text-[11px] text-[var(--cyan-deep)]">
+            Monitoring starts only when you tap below and stops when you arrive
+            or end the trip. The iPhone app can continue in the background; the
+            web app must stay open. Origin coordinates are never stored.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void (watching ? stop() : start())}
+              disabled={busy}
+              className="btn btn-primary min-h-11 px-3 text-xs font-bold"
+            >
+              {watching ? (
+                <Square className="size-4 fill-current" />
+              ) : (
+                <LocateFixed className="size-4" />
+              )}
+              {watching
+                ? "Stop trip"
+                : native
+                  ? "Start background Journey"
+                  : "Use live location"}
+            </button>
+            <button
+              type="button"
+              onClick={() => void route(null, true)}
+              disabled={busy}
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--outline)] px-3 text-xs font-bold text-[var(--navy)]"
+            >
+              <MapPin className="size-4" />
+              Use demo route
+            </button>
+            {journey && lastOrigin && !watching && (
+              <button
+                type="button"
+                onClick={() => void route(lastOrigin)}
+                disabled={busy}
+                className="min-h-11 rounded-xl border px-3 text-xs font-bold"
+              >
+                Refresh
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setManualOpen((value) => !value)}
+              disabled={busy}
+              className="min-h-11 rounded-xl border border-[var(--outline)] px-3 text-xs font-bold text-[var(--navy)]"
+            >
+              I&apos;m stuck in traffic
+            </button>
+          </div>
+        </>
+      )}
+      {manualOpen && (
+        <div className="mt-3 flex flex-wrap items-end gap-2 rounded-xl bg-[var(--surface-low)] p-3">
+          <label className="grid gap-1 text-xs font-bold text-[var(--navy)]">
+            Expected delay
+            <select
+              value={manualDelay}
+              onChange={(event) => setManualDelay(Number(event.target.value))}
+              className="min-h-11 rounded-lg border border-[var(--outline)] bg-white px-3 font-normal"
+            >
+              {[15, 30, 45, 60, 90].map((minutes) => (
+                <option key={minutes} value={minutes}>
+                  {minutes} minutes
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void reportTraffic()}
+            className="btn btn-primary min-h-11 px-4 text-xs"
+          >
+            Repair flexible tasks
+          </button>
+        </div>
+      )}
+      {busy && (
+        <p
+          role="status"
+          className="mt-3 flex items-center gap-2 text-xs text-[var(--muted)]"
+        >
+          <LoaderCircle className="size-4 animate-spin" />
+          Updating route…
+        </p>
+      )}
+      {journey && (
+        <div className="mt-3 rounded-xl bg-[var(--surface-low)] p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="font-display text-lg font-semibold text-[var(--navy)]">
+              {journey.durationMinutes} min ·{" "}
+              {Math.max(0.1, journey.distanceMeters / 1000).toFixed(1)} km
+            </p>
+            <span
+              className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase ${journey.source === "google" ? "bg-[var(--cyan-soft)] text-[var(--cyan-deep)]" : "bg-[var(--gold-soft)] text-[var(--gold-deep)]"}`}
+            >
+              {journey.source === "google"
+                ? "Live Google route"
+                : "Seeded demo"}
+            </span>
+          </div>
+          <div className="mt-2 grid gap-1 text-xs sm:grid-cols-2">
+            <p className="flex items-center gap-1">
+              <Clock3 className="size-3" />
+              Leave by {time(journey.leaveAt)}
+            </p>
+            <p>Arrival {time(journey.predictedArrival)}</p>
+          </div>
+          {journey.delayMinutes > 0 && (
+            <div className="mt-3 rounded-lg bg-[#ffdad6] p-3 text-xs text-[#93000a]">
+              <p className="flex items-center gap-2 font-bold">
+                <AlertTriangle className="size-4" />
+                Predicted {journey.delayMinutes} min late
+              </p>
+              <button
+                type="button"
+                onClick={() => void share()}
+                disabled={busy}
+                className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#93000a] px-3 font-bold text-white"
+              >
+                <Send className="size-4" />
+                Approve & share ETA
+              </button>
+              <p className="mt-1">
+                Only status and ETA are sent—never coordinates.
+              </p>
+            </div>
+          )}
+          <p className="mt-2 text-[10px] text-[var(--muted)]">
+            {journey.accuracyWarning} Updated {time(journey.freshAt)}.
+          </p>
+        </div>
+      )}
+      {error && (
+        <p
+          role="alert"
+          className="mt-3 text-xs font-semibold text-[var(--error)]"
+        >
+          {error}
+        </p>
+      )}
+      {notice && (
+        <p
+          role="status"
+          className="mt-3 flex items-center gap-1 text-xs font-semibold text-[var(--success)]"
+        >
+          <Check className="size-4" />
+          {notice}
+        </p>
+      )}
+    </div>
+  );
 }

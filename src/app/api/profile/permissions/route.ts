@@ -1,4 +1,0 @@
-import { NextResponse } from "next/server";import{z}from"zod";import{savePermission}from"@/lib/profile/server";
-import { userMessage } from "@/lib/http";
-const schema=z.object({granteeId:z.string().uuid(),scope:z.enum(["none","free_busy","categories"]),categories:z.array(z.string().trim().min(1).max(60)).max(20)}).refine((value)=>value.scope!=="categories"||value.categories.length>0,{message:"Choose at least one category."});
-export async function PATCH(request:Request){const parsed=schema.safeParse(await request.json().catch(()=>null));if(!parsed.success)return NextResponse.json({error:parsed.error.issues[0]?.message??"Permission is invalid."},{status:400});try{return NextResponse.json({permission:await savePermission(parsed.data.granteeId,parsed.data.scope,parsed.data.categories)});}catch(error){return NextResponse.json({error:userMessage(error,"Permission could not be saved.")},{status:422});}}

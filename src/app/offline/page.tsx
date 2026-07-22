@@ -1,1 +1,6 @@
-import Image from"next/image";export default function Page(){return <main className="grid min-h-screen place-items-center p-6 text-center"><div><Image src="/kairos-mascot.png" alt="Kairos" width={144} height={144} className="mx-auto"/><h1 className="page-title mt-4">You&apos;re offline</h1><p className="mt-3 text-[var(--muted)]">Reconnect to load private schedule data.</p></div></main>}
+import type { Metadata } from "next";
+import { OfflineState } from "@/components/offline-state";
+export const metadata: Metadata = { title: "Offline" };
+export default function OfflinePage() {
+  return <OfflineState />;
+}

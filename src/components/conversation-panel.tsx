@@ -1,51 +1,492 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertCircle, Download, FileText, LoaderCircle, LockKeyhole, MessageCircle, Paperclip, Send } from "lucide-react";
+import {
+  AlertCircle,
+  Download,
+  FileText,
+  LoaderCircle,
+  LockKeyhole,
+  MessageCircle,
+  Paperclip,
+  Send,
+} from "lucide-react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
-import type { ConversationContact, ConversationView } from "@/lib/conversations/types";
+import type {
+  ConversationContact,
+  ConversationView,
+} from "@/lib/conversations/types";
 
-function clock(value:string){return new Intl.DateTimeFormat("en-US",{hour:"numeric",minute:"2-digit"}).format(new Date(value));}
-function size(value:number){return value<1024?`${value} B`:value<1024*1024?`${Math.ceil(value/1024)} KB`:`${(value/1024/1024).toFixed(1)} MB`;}
-function initial(name:string){return name.trim().charAt(0).toUpperCase()||"?";}
+function clock(value: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+function size(value: number) {
+  return value < 1024
+    ? `${value} B`
+    : value < 1024 * 1024
+      ? `${Math.ceil(value / 1024)} KB`
+      : `${(value / 1024 / 1024).toFixed(1)} MB`;
+}
+function initial(name: string) {
+  return name.trim().charAt(0).toUpperCase() || "?";
+}
 
-export function ConversationPanel({role,supabaseConfigured}:{role:"justin"|"chloe";supabaseConfigured:boolean}){
-  const[contacts,setContacts]=useState<ConversationContact[]>([]);
-  const[selectedId,setSelectedId]=useState<string|null>(null);
-  const[conversation,setConversation]=useState<ConversationView|null>(null);
-  const[body,setBody]=useState("");
-  const[file,setFile]=useState<File|null>(null);
-  const[busy,setBusy]=useState(false);
-  const[loading,setLoading]=useState(true);
-  const[error,setError]=useState<string|null>(null);
-  const[context,setContext]=useState<{id:string;title:string}|null>(null);
-  const fileInput=useRef<HTMLInputElement|null>(null),end=useRef<HTMLDivElement|null>(null),contactsRef=useRef<ConversationContact[]>([]),selectedRef=useRef<string|null>(null);
-  const headers=useCallback(():Record<string,string>=>supabaseConfigured?{}:{"x-demo-user":role},[role,supabaseConfigured]);
-  const load=useCallback(async(userId:string|null)=>{setLoading(true);try{const query=userId?`?userId=${encodeURIComponent(userId)}`:"",response=await fetch(`/api/conversations${query}`,{headers:headers()}),data=await response.json();if(!response.ok)throw new Error(data.error);setContacts(data.contacts??[]);contactsRef.current=data.contacts??[];setConversation(data.conversation??null);setError(null);}catch(reason){setError(reason instanceof Error?reason.message:"Messages could not be loaded.");setConversation(null);}finally{setLoading(false);}},[headers]);
-  const select=useCallback((userId:string)=>{setSelectedId(userId);selectedRef.current=userId;setBody("");setFile(null);setContext(null);setConversation(null);void load(userId);},[load]);
+export function ConversationPanel({
+  role,
+  supabaseConfigured,
+}: {
+  role: "justin" | "chloe";
+  supabaseConfigured: boolean;
+}) {
+  const [contacts, setContacts] = useState<ConversationContact[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [conversation, setConversation] = useState<ConversationView | null>(
+    null,
+  );
+  const [body, setBody] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [context, setContext] = useState<{ id: string; title: string } | null>(
+    null,
+  );
+  const fileInput = useRef<HTMLInputElement | null>(null),
+    end = useRef<HTMLDivElement | null>(null),
+    contactsRef = useRef<ConversationContact[]>([]),
+    selectedRef = useRef<string | null>(null);
+  const headers = useCallback(
+    (): Record<string, string> =>
+      supabaseConfigured ? {} : { "x-demo-user": role },
+    [role, supabaseConfigured],
+  );
+  const load = useCallback(
+    async (userId: string | null) => {
+      setLoading(true);
+      try {
+        const query = userId ? `?userId=${encodeURIComponent(userId)}` : "",
+          response = await fetch(`/api/conversations${query}`, {
+            headers: headers(),
+          }),
+          data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+        setContacts(data.contacts ?? []);
+        contactsRef.current = data.contacts ?? [];
+        setConversation(data.conversation ?? null);
+        setError(null);
+      } catch (reason) {
+        setError(
+          reason instanceof Error
+            ? reason.message
+            : "Messages could not be loaded.",
+        );
+        setConversation(null);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [headers],
+  );
+  const select = useCallback(
+    (userId: string) => {
+      setSelectedId(userId);
+      selectedRef.current = userId;
+      setBody("");
+      setFile(null);
+      setContext(null);
+      setConversation(null);
+      void load(userId);
+    },
+    [load],
+  );
 
-  useEffect(()=>{const timer=window.setTimeout(()=>{setSelectedId(null);selectedRef.current=null;setConversation(null);void load(null);},0);return()=>window.clearTimeout(timer);},[load]);
-  useEffect(()=>{const messageHandler=(event:Event)=>{const detail=(event as CustomEvent<{id:string}>).detail;if(detail?.id)select(detail.id);};const meetingHandler=(event:Event)=>{const detail=(event as CustomEvent<{id:string;title:string}>).detail;setContext(detail);const target=contactsRef.current.find((contact)=>contact.name.toLowerCase().includes("chloe"))??contactsRef.current[0];if(!selectedRef.current&&target){setSelectedId(target.id);selectedRef.current=target.id;void load(target.id);}window.setTimeout(()=>document.getElementById("conversation-composer")?.scrollIntoView({behavior:"smooth",block:"center"}),0);};window.addEventListener("kairos:message-friend",messageHandler);window.addEventListener("kairos:discuss-meeting",meetingHandler);return()=>{window.removeEventListener("kairos:message-friend",messageHandler);window.removeEventListener("kairos:discuss-meeting",meetingHandler);};},[load,select]);
-  useEffect(()=>{if(!supabaseConfigured||!selectedId)return;const client=createBrowserSupabaseClient(),channel=client.channel(`direct-inbox-${selectedId}`).on("postgres_changes",{event:"*",schema:"public",table:"conversation_messages"},()=>load(selectedId)).on("postgres_changes",{event:"*",schema:"public",table:"message_attachments"},()=>load(selectedId)).subscribe();return()=>{void client.removeChannel(channel);};},[load,selectedId,supabaseConfigured]);
-  useEffect(()=>{end.current?.scrollIntoView({block:"nearest"});},[conversation?.messages.length]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setSelectedId(null);
+      selectedRef.current = null;
+      setConversation(null);
+      void load(null);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
+  useEffect(() => {
+    const messageHandler = (event: Event) => {
+      const detail = (event as CustomEvent<{ id: string }>).detail;
+      if (detail?.id) select(detail.id);
+    };
+    const meetingHandler = (event: Event) => {
+      const detail = (event as CustomEvent<{ id: string; title: string }>)
+        .detail;
+      setContext(detail);
+      const target =
+        contactsRef.current.find((contact) =>
+          contact.name.toLowerCase().includes("chloe"),
+        ) ?? contactsRef.current[0];
+      if (!selectedRef.current && target) {
+        setSelectedId(target.id);
+        selectedRef.current = target.id;
+        void load(target.id);
+      }
+      window.setTimeout(
+        () =>
+          document
+            .getElementById("conversation-composer")
+            ?.scrollIntoView({ behavior: "smooth", block: "center" }),
+        0,
+      );
+    };
+    window.addEventListener("kairos:message-friend", messageHandler);
+    window.addEventListener("kairos:discuss-meeting", meetingHandler);
+    return () => {
+      window.removeEventListener("kairos:message-friend", messageHandler);
+      window.removeEventListener("kairos:discuss-meeting", meetingHandler);
+    };
+  }, [load, select]);
+  useEffect(() => {
+    if (!supabaseConfigured || !selectedId) return;
+    const client = createBrowserSupabaseClient(),
+      channel = client
+        .channel(`direct-inbox-${selectedId}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "conversation_messages" },
+          () => load(selectedId),
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "message_attachments" },
+          () => load(selectedId),
+        )
+        .subscribe();
+    return () => {
+      void client.removeChannel(channel);
+    };
+  }, [load, selectedId, supabaseConfigured]);
+  useEffect(() => {
+    end.current?.scrollIntoView({ block: "nearest" });
+  }, [conversation?.messages.length]);
 
-  async function send(){if(!conversation||(!body.trim()&&!file))return;setBusy(true);setError(null);try{const nonce=crypto.randomUUID();let response:Response;if(file){const form=new FormData();form.set("file",file);form.set("body",body.trim()||`Shared ${file.name}`);form.set("clientNonce",nonce);if(context)form.set("relatedMeetingId",context.id);response=await fetch(`/api/conversations/${conversation.id}/attachments`,{method:"POST",headers:headers(),body:form});}else response=await fetch(`/api/conversations/${conversation.id}/messages`,{method:"POST",headers:{"Content-Type":"application/json",...headers()},body:JSON.stringify({body,clientNonce:nonce,relatedMeetingId:context?.id??null})});const data=await response.json();if(!response.ok)throw new Error(data.error);setBody("");setFile(null);setContext(null);if(fileInput.current)fileInput.current.value="";await load(conversation.otherUser.id);}catch(reason){setError(reason instanceof Error?reason.message:"Message could not be sent.");}finally{setBusy(false);}}
+  async function send() {
+    if (!conversation || (!body.trim() && !file)) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const nonce = crypto.randomUUID();
+      let response: Response;
+      if (file) {
+        const form = new FormData();
+        form.set("file", file);
+        form.set("body", body.trim() || `Shared ${file.name}`);
+        form.set("clientNonce", nonce);
+        if (context) form.set("relatedMeetingId", context.id);
+        response = await fetch(
+          `/api/conversations/${conversation.id}/attachments`,
+          { method: "POST", headers: headers(), body: form },
+        );
+      } else
+        response = await fetch(
+          `/api/conversations/${conversation.id}/messages`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...headers() },
+            body: JSON.stringify({
+              body,
+              clientNonce: nonce,
+              relatedMeetingId: context?.id ?? null,
+            }),
+          },
+        );
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      setBody("");
+      setFile(null);
+      setContext(null);
+      if (fileInput.current) fileInput.current.value = "";
+      await load(conversation.otherUser.id);
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : "Message could not be sent.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
 
-  return <section className="card overflow-hidden" aria-label="Messages">
-    <div className="grid min-h-[34rem] md:grid-cols-[17rem_1fr]">
-      <aside className="border-b border-[var(--outline)] bg-white md:border-b-0 md:border-r">
-        <header className="border-b border-[var(--outline)] p-4"><h2 className="font-display text-xl font-semibold text-[var(--navy)]">Chats</h2></header>
-        <div className="max-h-72 overflow-y-auto p-2 md:max-h-[31rem]">{loading&&!contacts.length?<div role="status" aria-label="Loading chats" className="space-y-2 p-1"><div className="skeleton h-12 w-full rounded-xl"/><div className="skeleton h-12 w-full rounded-xl"/><div className="skeleton h-12 w-full rounded-xl"/></div>:contacts.length?contacts.map((contact)=>{return <article key={contact.id} className={`mb-1 rounded-xl ${selectedId===contact.id?"bg-[var(--navy-container)] text-white":"hover:bg-[var(--surface-low)]"}`}><button type="button" aria-label={`Open chat with ${contact.name}`} onClick={()=>select(contact.id)} className="flex min-h-16 w-full items-center gap-3 p-3 text-left"><span className={`grid size-10 shrink-0 place-items-center rounded-full font-display font-bold ${selectedId===contact.id?"bg-white/15":"bg-[var(--cyan-soft)] text-[var(--navy)]"}`}>{initial(contact.name)}</span><span className="min-w-0"><strong className="block truncate text-sm">{contact.name}</strong><span className={`block truncate text-xs ${selectedId===contact.id?"text-white/65":"text-[var(--muted)]"}`}>{contact.email}</span></span></button></article>}):<p className="p-4 text-sm text-[var(--muted)]">Add a friend to start chatting.</p>}</div>
-      </aside>
+  return (
+    <section className="card overflow-hidden" aria-label="Messages">
+      <div className="grid min-h-[34rem] md:grid-cols-[17rem_1fr]">
+        <aside className="border-b border-[var(--outline)] bg-white md:border-b-0 md:border-r">
+          <header className="border-b border-[var(--outline)] p-4">
+            <h2 className="font-display text-xl font-semibold text-[var(--navy)]">
+              Chats
+            </h2>
+          </header>
+          <div className="max-h-72 overflow-y-auto p-2 md:max-h-[31rem]">
+            {loading && !contacts.length ? (
+              <div
+                role="status"
+                aria-label="Loading chats"
+                className="space-y-2 p-1"
+              >
+                <div className="skeleton h-12 w-full rounded-xl" />
+                <div className="skeleton h-12 w-full rounded-xl" />
+                <div className="skeleton h-12 w-full rounded-xl" />
+              </div>
+            ) : contacts.length ? (
+              contacts.map((contact) => {
+                return (
+                  <article
+                    key={contact.id}
+                    className={`mb-1 rounded-xl ${selectedId === contact.id ? "bg-[var(--navy-container)] text-white" : "hover:bg-[var(--surface-low)]"}`}
+                  >
+                    <button
+                      type="button"
+                      aria-label={`Open chat with ${contact.name}`}
+                      onClick={() => select(contact.id)}
+                      className="flex min-h-16 w-full items-center gap-3 p-3 text-left"
+                    >
+                      <span
+                        className={`grid size-10 shrink-0 place-items-center rounded-full font-display font-bold ${selectedId === contact.id ? "bg-white/15" : "bg-[var(--cyan-soft)] text-[var(--navy)]"}`}
+                      >
+                        {initial(contact.name)}
+                      </span>
+                      <span className="min-w-0">
+                        <strong className="block truncate text-sm">
+                          {contact.name}
+                        </strong>
+                        <span
+                          className={`block truncate text-xs ${selectedId === contact.id ? "text-white/65" : "text-[var(--muted)]"}`}
+                        >
+                          {contact.email}
+                        </span>
+                      </span>
+                    </button>
+                  </article>
+                );
+              })
+            ) : (
+              <p className="p-4 text-sm text-[var(--muted)]">
+                Add a friend to start chatting.
+              </p>
+            )}
+          </div>
+        </aside>
 
-      <div className="flex min-w-0 flex-col bg-[var(--surface-low)]">
-        {!selectedId?<div className="grid flex-1 place-items-center p-8 text-center"><div><span className="mx-auto grid size-16 place-items-center rounded-full bg-[var(--cyan-soft)] text-[var(--navy)]"><MessageCircle className="size-7"/></span><h3 className="font-display mt-4 text-xl font-semibold text-[var(--navy)]">Select a friend</h3><p className="mt-1 text-sm text-[var(--muted)]">Choose a chat from the list.</p></div></div>:loading&&!conversation?<div role="status" aria-label="Loading conversation" className="flex flex-1 flex-col gap-3 p-4"><div className="skeleton h-16 w-3/5 self-start rounded-2xl"/><div className="skeleton h-12 w-1/2 self-end rounded-2xl"/><div className="skeleton h-20 w-2/3 self-start rounded-2xl"/></div>:conversation?<>
-          <header className="flex items-center gap-3 border-b border-[var(--outline)] bg-white p-4"><span className="grid size-10 place-items-center rounded-full bg-[var(--cyan-soft)] font-display font-bold text-[var(--navy)]">{initial(conversation.otherUser.name)}</span><div className="min-w-0"><h3 className="truncate font-display font-semibold text-[var(--navy)]">{conversation.otherUser.name}</h3><p className="truncate text-xs text-[var(--muted)]">{conversation.otherUser.email}</p></div></header>
-          <div className="max-h-[26rem] min-h-72 flex-1 overflow-y-auto p-4" aria-live="polite">{conversation.messages.length?conversation.messages.map((message)=><article key={message.id} className={`mb-3 flex ${message.senderKind==="system"?"justify-center":message.isMine?"justify-end":"justify-start"}`}>{message.senderKind==="system"?<div className="w-full max-w-xl rounded-xl border border-[var(--outline)] bg-white p-3 text-sm"><div className="flex items-center gap-2 text-xs font-bold text-[var(--muted)]">Update{message.private&&<span className="ml-auto inline-flex items-center gap-1"><LockKeyhole className="size-3"/>Private</span>}</div><p className="mt-1">{message.body}</p></div>:<div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-sm ${message.isMine?"rounded-br-md bg-[var(--navy-container)] text-white":"rounded-bl-md border border-[var(--outline)] bg-white"}`}><p className={`truncate text-[10px] font-bold ${message.isMine?"text-white/60":"text-[var(--muted)]"}`}>{message.senderName}</p><p className="mt-1 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.body}</p>{message.relatedMeetingId&&<span className={`mt-2 inline-flex rounded-full px-2 py-1 text-[10px] font-bold ${message.isMine?"bg-white/15":"bg-[var(--cyan-soft)] text-[var(--cyan-deep)]"}`}>Meeting</span>}{message.attachments.map((attachment)=><a key={attachment.id} href={attachment.downloadPath} target="_blank" rel="noreferrer" className={`mt-3 flex items-center gap-2 rounded-xl p-2.5 ${message.isMine?"bg-white/10":"bg-[var(--surface-low)]"}`}><FileText className="size-4 shrink-0"/><span className="min-w-0 flex-1"><strong className="block truncate text-xs">{attachment.name}</strong><span className="text-[10px] opacity-70">{size(attachment.sizeBytes)}</span></span><Download className="size-4"/></a>)}<time className={`mt-2 block text-right text-[10px] ${message.isMine?"text-white/55":"text-[var(--muted)]"}`}>{clock(message.createdAt)}</time></div>}</article>):<div className="grid min-h-56 place-items-center text-sm text-[var(--muted)]">No messages yet.</div>}<div ref={end}/></div>
-          <div id="conversation-composer" className="mt-auto border-t border-[var(--outline)] bg-white p-3">{context&&<div className="mb-2 flex items-center justify-between rounded-xl bg-[var(--cyan-soft)] px-3 py-2 text-xs text-[var(--cyan-deep)]"><span>Discussing: <strong>{context.title}</strong></span><button type="button" onClick={()=>setContext(null)} className="shrink-0 pl-3 font-bold hover:underline">Clear</button></div>}{file&&<div className="mb-2 flex items-center justify-between rounded-xl bg-[var(--surface-low)] px-3 py-2 text-xs"><span className="min-w-0 flex-1 truncate">{file.name} · {size(file.size)}</span><button type="button" onClick={()=>{setFile(null);if(fileInput.current)fileInput.current.value="";}} className="shrink-0 pl-3 font-bold text-[var(--error)] hover:underline">Remove</button></div>}<div className="flex items-end gap-2 rounded-2xl border border-[var(--outline)] p-2 focus-within:border-[var(--cyan-deep)]"><label className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-xl text-[var(--navy)] hover:bg-[var(--surface-low)]" title="Attach file"><Paperclip className="size-5"/><span className="sr-only">Attach file</span><input ref={fileInput} type="file" className="sr-only" accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,application/pdf,image/png,image/jpeg,image/webp,text/plain" onChange={(event)=>setFile(event.target.files?.[0]??null)}/></label><textarea aria-label="Write a message" value={body} onChange={(event)=>setBody(event.target.value)} onKeyDown={(event)=>{if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();void send();}}} rows={1} maxLength={4000} placeholder="Message" className="max-h-32 min-h-11 flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none"/><button aria-label="Send message" disabled={busy||(!body.trim()&&!file)} onClick={()=>void send()} className="grid size-11 shrink-0 place-items-center rounded-full bg-[var(--navy)] text-white disabled:opacity-40">{busy?<LoaderCircle className="size-4 animate-spin"/>:<Send className="size-4"/>}</button></div></div>
-        </>:null}
+        <div className="flex min-w-0 flex-col bg-[var(--surface-low)]">
+          {!selectedId ? (
+            <div className="grid flex-1 place-items-center p-8 text-center">
+              <div>
+                <span className="mx-auto grid size-16 place-items-center rounded-full bg-[var(--cyan-soft)] text-[var(--navy)]">
+                  <MessageCircle className="size-7" />
+                </span>
+                <h3 className="font-display mt-4 text-xl font-semibold text-[var(--navy)]">
+                  Select a friend
+                </h3>
+                <p className="mt-1 text-sm text-[var(--muted)]">
+                  Choose a chat from the list.
+                </p>
+              </div>
+            </div>
+          ) : loading && !conversation ? (
+            <div
+              role="status"
+              aria-label="Loading conversation"
+              className="flex flex-1 flex-col gap-3 p-4"
+            >
+              <div className="skeleton h-16 w-3/5 self-start rounded-2xl" />
+              <div className="skeleton h-12 w-1/2 self-end rounded-2xl" />
+              <div className="skeleton h-20 w-2/3 self-start rounded-2xl" />
+            </div>
+          ) : conversation ? (
+            <>
+              <header className="flex items-center gap-3 border-b border-[var(--outline)] bg-white p-4">
+                <span className="grid size-10 place-items-center rounded-full bg-[var(--cyan-soft)] font-display font-bold text-[var(--navy)]">
+                  {initial(conversation.otherUser.name)}
+                </span>
+                <div className="min-w-0">
+                  <h3 className="truncate font-display font-semibold text-[var(--navy)]">
+                    {conversation.otherUser.name}
+                  </h3>
+                  <p className="truncate text-xs text-[var(--muted)]">
+                    {conversation.otherUser.email}
+                  </p>
+                </div>
+              </header>
+              <div
+                className="max-h-[26rem] min-h-72 flex-1 overflow-y-auto p-4"
+                aria-live="polite"
+              >
+                {conversation.messages.length ? (
+                  conversation.messages.map((message) => (
+                    <article
+                      key={message.id}
+                      className={`mb-3 flex ${message.senderKind === "system" ? "justify-center" : message.isMine ? "justify-end" : "justify-start"}`}
+                    >
+                      {message.senderKind === "system" ? (
+                        <div className="w-full max-w-xl rounded-xl border border-[var(--outline)] bg-white p-3 text-sm">
+                          <div className="flex items-center gap-2 text-xs font-bold text-[var(--muted)]">
+                            Update
+                            {message.private && (
+                              <span className="ml-auto inline-flex items-center gap-1">
+                                <LockKeyhole className="size-3" />
+                                Private
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-1">{message.body}</p>
+                        </div>
+                      ) : (
+                        <div
+                          className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-sm ${message.isMine ? "rounded-br-md bg-[var(--navy-container)] text-white" : "rounded-bl-md border border-[var(--outline)] bg-white"}`}
+                        >
+                          <p
+                            className={`truncate text-[10px] font-bold ${message.isMine ? "text-white/60" : "text-[var(--muted)]"}`}
+                          >
+                            {message.senderName}
+                          </p>
+                          <p className="mt-1 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                            {message.body}
+                          </p>
+                          {message.relatedMeetingId && (
+                            <span
+                              className={`mt-2 inline-flex rounded-full px-2 py-1 text-[10px] font-bold ${message.isMine ? "bg-white/15" : "bg-[var(--cyan-soft)] text-[var(--cyan-deep)]"}`}
+                            >
+                              Meeting
+                            </span>
+                          )}
+                          {message.attachments.map((attachment) => (
+                            <a
+                              key={attachment.id}
+                              href={attachment.downloadPath}
+                              target="_blank"
+                              rel="noreferrer"
+                              className={`mt-3 flex items-center gap-2 rounded-xl p-2.5 ${message.isMine ? "bg-white/10" : "bg-[var(--surface-low)]"}`}
+                            >
+                              <FileText className="size-4 shrink-0" />
+                              <span className="min-w-0 flex-1">
+                                <strong className="block truncate text-xs">
+                                  {attachment.name}
+                                </strong>
+                                <span className="text-[10px] opacity-70">
+                                  {size(attachment.sizeBytes)}
+                                </span>
+                              </span>
+                              <Download className="size-4" />
+                            </a>
+                          ))}
+                          <time
+                            className={`mt-2 block text-right text-[10px] ${message.isMine ? "text-white/55" : "text-[var(--muted)]"}`}
+                          >
+                            {clock(message.createdAt)}
+                          </time>
+                        </div>
+                      )}
+                    </article>
+                  ))
+                ) : (
+                  <div className="grid min-h-56 place-items-center text-sm text-[var(--muted)]">
+                    No messages yet.
+                  </div>
+                )}
+                <div ref={end} />
+              </div>
+              <div
+                id="conversation-composer"
+                className="mt-auto border-t border-[var(--outline)] bg-white p-3"
+              >
+                {context && (
+                  <div className="mb-2 flex items-center justify-between rounded-xl bg-[var(--cyan-soft)] px-3 py-2 text-xs text-[var(--cyan-deep)]">
+                    <span>
+                      Discussing: <strong>{context.title}</strong>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setContext(null)}
+                      className="shrink-0 pl-3 font-bold hover:underline"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                )}
+                {file && (
+                  <div className="mb-2 flex items-center justify-between rounded-xl bg-[var(--surface-low)] px-3 py-2 text-xs">
+                    <span className="min-w-0 flex-1 truncate">
+                      {file.name} · {size(file.size)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFile(null);
+                        if (fileInput.current) fileInput.current.value = "";
+                      }}
+                      className="shrink-0 pl-3 font-bold text-[var(--error)] hover:underline"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+                <div className="flex items-end gap-2 rounded-2xl border border-[var(--outline)] p-2 focus-within:border-[var(--cyan-deep)]">
+                  <label
+                    className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-xl text-[var(--navy)] hover:bg-[var(--surface-low)]"
+                    title="Attach file"
+                  >
+                    <Paperclip className="size-5" />
+                    <span className="sr-only">Attach file</span>
+                    <input
+                      ref={fileInput}
+                      type="file"
+                      className="sr-only"
+                      accept=".pdf,.png,.jpg,.jpeg,.webp,.txt,application/pdf,image/png,image/jpeg,image/webp,text/plain"
+                      onChange={(event) =>
+                        setFile(event.target.files?.[0] ?? null)
+                      }
+                    />
+                  </label>
+                  <textarea
+                    aria-label="Write a message"
+                    value={body}
+                    onChange={(event) => setBody(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !event.shiftKey) {
+                        event.preventDefault();
+                        void send();
+                      }
+                    }}
+                    rows={1}
+                    maxLength={4000}
+                    placeholder="Message"
+                    className="max-h-32 min-h-11 flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none"
+                  />
+                  <button
+                    aria-label="Send message"
+                    disabled={busy || (!body.trim() && !file)}
+                    onClick={() => void send()}
+                    className="grid size-11 shrink-0 place-items-center rounded-full bg-[var(--navy)] text-white disabled:opacity-40"
+                  >
+                    {busy ? (
+                      <LoaderCircle className="size-4 animate-spin" />
+                    ) : (
+                      <Send className="size-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </>
+          ) : null}
+        </div>
       </div>
-    </div>
-    {error&&<div role="alert" className="flex gap-2 border-t border-[#ffb4ab] bg-[#ffdad6] p-3 text-sm text-[#93000a]"><AlertCircle className="size-4 shrink-0"/>{error}</div>}
-  </section>;
+      {error && (
+        <div
+          role="alert"
+          className="flex gap-2 border-t border-[#ffb4ab] bg-[#ffdad6] p-3 text-sm text-[#93000a]"
+        >
+          <AlertCircle className="size-4 shrink-0" />
+          {error}
+        </div>
+      )}
+    </section>
+  );
 }
