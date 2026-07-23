@@ -4,6 +4,7 @@ import {
   getNativeCapabilities,
   interpretNatively,
   NativeSpeech,
+  openAppSettings,
   prepareNativePlanner,
   subscribeToTranscript,
   updateNativePlannerContext,
@@ -31,6 +32,11 @@ import { apiRequest } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { mobileConfig } from "../lib/config";
 import { useMobileData } from "../lib/data";
+import {
+  claimAssistantDraft,
+  peekAssistantDraft,
+  subscribeToAssistantDraft,
+} from "../lib/draft";
 import { Mic, Square } from "../lib/icons";
 import { metricNow, recordMetric } from "../lib/metrics";
 
@@ -38,6 +44,16 @@ type HistoryEntry = {
   id: string;
   role: "user" | "assistant";
   text: string;
+};
+
+const modelLabels: Record<
+  NativeCapabilities["foundationModel"]["state"],
+  string
+> = {
+  available: "Apple Intelligence ready",
+  downloading: "Model downloading",
+  unavailable: "On-device planning",
+  unsupported: "On-device planning",
 };
 
 function localInputValue(date: Date) {
@@ -58,7 +74,10 @@ function defaultManualTimes() {
 export default function Assistant() {
   const auth = useAuth();
   const { data, confirmCreates } = useMobileData();
-  const [command, setCommand] = useState("");
+  // Claimed during the first render rather than in an effect, so the handoff
+  // from Home's quick capture is already in the box on the first paint.
+  const [draft] = useState(peekAssistantDraft);
+  const [command, setCommand] = useState(draft?.text ?? "");
   const [recording, setRecording] = useState(false);
   const [reviewingTranscript, setReviewingTranscript] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -153,6 +172,25 @@ export default function Assistant() {
     if (context) void updateNativePlannerContext(context);
   }, [context]);
 
+  // A draft that arrived with a submit is interpreted straight away; one that
+  // arrived from the mic button opens the recorder instead. Tapping through
+  // without either just leaves the text in the box.
+  useEffect(() => {
+    if (!draft || !claimAssistantDraft(draft)) return;
+    if (draft.record) void startVoice();
+    else if (draft.submitted) void interpret(metricNow(), draft.text);
+    // startVoice and interpret are recreated every render; this runs once per
+    // draft, which the claim above enforces.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft]);
+
+  // Only relevant when this tab is already on screen; the module keeps the
+  // draft for the usual case where Home mounts it fresh.
+  useEffect(
+    () => subscribeToAssistantDraft((value) => setCommand(value.text)),
+    [],
+  );
+
   async function remember(role: HistoryEntry["role"], text: string) {
     const entry = { id: crypto.randomUUID(), role, text };
     setHistory((current) => [...current, entry].slice(-100));
@@ -192,18 +230,19 @@ export default function Assistant() {
     }
   }
 
-  async function interpret(startedAt: number) {
-    if (!data || command.trim().length < 2) return;
+  async function interpret(startedAt: number, text = command) {
+    const value = text.trim();
+    if (!data || value.length < 2) return;
     setBusy(true);
     setError(null);
     setQuestion(null);
     setReviewingTranscript(false);
-    await remember("user", command.trim());
+    await remember("user", value);
     let nativeFailure: string | null = null;
     try {
       const native = mobileConfig.features.applePlanner
         ? await interpretNatively({
-            command: command.trim(),
+            command: value,
             timezone: data.viewer.timezone,
             contextVersion: data.scheduleVersion,
             history: history
@@ -229,7 +268,7 @@ export default function Assistant() {
           ? reason.message
           : "Apple Intelligence could not safely interpret this request.";
     }
-    const deterministic = deterministicInterpret(command.trim(), new Date());
+    const deterministic = deterministicInterpret(value, new Date());
     if (deterministic) {
       showIntent(deterministic, "deterministic");
       if (auth.accessToken)
@@ -293,6 +332,10 @@ export default function Assistant() {
     }
   }
 
+  async function refreshCapabilities() {
+    setCapabilities(await getNativeCapabilities());
+  }
+
   async function clearHistory() {
     await Promise.all([clearAssistantHistory(), clearNativePlannerHistory()]);
     setHistory([]);
@@ -336,6 +379,10 @@ export default function Assistant() {
     setCommand("");
   }
 
+  const speechBlocked =
+    capabilities?.speech.state === "denied" ||
+    capabilities?.speech.state === "restricted";
+
   return (
     <main className="page">
       <header>
@@ -349,14 +396,49 @@ export default function Assistant() {
       <section className="panel panel-pad page">
         <div className="actions" style={{ justifyContent: "space-between" }}>
           <span className="badge">
-            {capabilities?.foundationModel.state === "available"
-              ? "Apple Intelligence ready"
-              : "Local safe fallback"}
+            {modelLabels[capabilities?.foundationModel.state ?? "unsupported"]}
           </span>
           <button className="secondary" onClick={() => void clearHistory()}>
             Clear history
           </button>
         </div>
+        {/*
+          When the on-device model is not usable, the reason is worth more than
+          the fact: "turned off" and "still downloading" need different actions
+          from the user, and both still plan locally.
+        */}
+        {capabilities &&
+          capabilities.foundationModel.state !== "available" &&
+          capabilities.foundationModel.reason && (
+            <div className="notice">
+              {capabilities.foundationModel.reason} Kairos still plans on this
+              phone.
+              {capabilities.foundationModel.state === "downloading" && (
+                <button
+                  type="button"
+                  className="secondary full"
+                  style={{ marginTop: 10 }}
+                  onClick={() => void refreshCapabilities()}
+                >
+                  Check again
+                </button>
+              )}
+            </div>
+          )}
+        {speechBlocked && (
+          <div className="notice">
+            Dictation needs the microphone and speech recognition, which are
+            turned off for Kairos. Typing still works.
+            <button
+              type="button"
+              className="secondary full"
+              style={{ marginTop: 10 }}
+              onClick={() => void openAppSettings()}
+            >
+              Open Settings
+            </button>
+          </div>
+        )}
         <label className="field">
           What needs to happen?
           <textarea
@@ -380,7 +462,9 @@ export default function Assistant() {
           <button
             type="button"
             className="secondary"
-            disabled={busy || !mobileConfig.features.nativeSpeech}
+            disabled={
+              busy || speechBlocked || !mobileConfig.features.nativeSpeech
+            }
             onClick={() =>
               void (recording
                 ? NativeSpeech.stop().then(() => {
@@ -389,14 +473,14 @@ export default function Assistant() {
                   })
                 : startVoice())
             }
-            aria-label={recording ? "Stop recording" : "Dictate"}
+            aria-label={recording ? "Stop recording" : "Record"}
           >
             {recording ? (
               <Square size={18} strokeWidth={2.5} aria-hidden />
             ) : (
               <Mic size={18} strokeWidth={2.5} aria-hidden />
             )}
-            {recording ? "Stop" : "Dictate"}
+            {recording ? "Stop" : "Record"}
           </button>
           {recording && (
             <button
@@ -418,7 +502,7 @@ export default function Assistant() {
             disabled={busy || command.trim().length < 2}
             onClick={(event) => void interpret(event.timeStamp)}
           >
-            {busy ? "Planning…" : "Review"}
+            {busy ? "Planning…" : "Review proposal"}
           </button>
           <button type="button" className="secondary" onClick={openManual}>
             Schedule manually

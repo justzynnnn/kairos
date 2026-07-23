@@ -6,6 +6,7 @@ import {
   useState,
   type ComponentType,
 } from "react";
+import { getSecureValue, setSecureValue } from "@/lib/mobile/store";
 import { AuthProvider, SignIn, useAuth } from "./lib/auth";
 import { DataProvider, useMobileData } from "./lib/data";
 import {
@@ -34,6 +35,7 @@ const Planner = lazy(() => import("./pages/planner"));
 const Assistant = lazy(() => import("./pages/assistant"));
 const Inbox = lazy(() => import("./pages/inbox"));
 const Profile = lazy(() => import("./pages/profile"));
+const Onboarding = lazy(() => import("./pages/onboarding"));
 
 type Tab = "home" | "planner" | "assistant" | "inbox" | "profile";
 const tabs: Array<{
@@ -263,13 +265,34 @@ function Shell() {
   );
 }
 
+const onboardedKey = "onboarded";
+
 function SessionGate() {
   const auth = useAuth();
-  const settled = !auth.loading;
+  // null while the flag is still being read; the shell must not paint before
+  // then or a first run would flash Home before its setup.
+  const [onboarded, setOnboarded] = useState<boolean | null>(null);
+  const signedIn = Boolean(auth.accessToken);
+  const settled = !auth.loading && (!signedIn || onboarded !== null);
+  useEffect(() => {
+    if (!signedIn) return;
+    let active = true;
+    void getSecureValue(onboardedKey)
+      .then((value) => {
+        if (active) setOnboarded(value === "1");
+      })
+      .catch(() => {
+        // A Keychain that will not answer must not trap the user in setup.
+        if (active) setOnboarded(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [signedIn]);
   useEffect(() => {
     if (settled) hideSplashScreen();
   }, [settled]);
-  if (auth.loading)
+  if (auth.loading || (signedIn && onboarded === null))
     return (
       <main className="auth" aria-label="Restoring secure session">
         <div className="brand">
@@ -282,7 +305,18 @@ function SessionGate() {
   if (!auth.accessToken) return <SignIn />;
   return (
     <DataProvider>
-      <Shell />
+      <Suspense fallback={<LoadingPage />}>
+        {onboarded ? (
+          <Shell />
+        ) : (
+          <Onboarding
+            onFinish={() => {
+              setOnboarded(true);
+              void setSecureValue(onboardedKey, "1").catch(() => null);
+            }}
+          />
+        )}
+      </Suspense>
     </DataProvider>
   );
 }

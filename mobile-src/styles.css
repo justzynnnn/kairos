@@ -839,6 +839,40 @@ button.notice {
 .nav-button {
   position: relative;
 }
+.onboarding-progress {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 4px;
+  padding: 0;
+  list-style: none;
+}
+.onboarding-progress li {
+  display: flex;
+  flex: 1;
+  gap: 6px;
+  align-items: center;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 750;
+}
+.onboarding-progress li[aria-current="step"] {
+  color: var(--text);
+}
+.onboarding-progress span {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  place-items: center;
+  color: var(--accent);
+  border-radius: 99px;
+  background: var(--accent-soft);
+  font-size: 11px;
+}
+.onboarding-progress li[aria-current="step"] span {
+  color: var(--on-brand);
+  background: var(--brand);
+}
 .theme-toggle {
   display: inline-flex;
   align-items: center;

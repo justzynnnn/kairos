@@ -24,6 +24,19 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!--
+		Only the local-networking exception, so a debug build can point
+		VITE_KAIROS_API_URL at a dev server on this Mac. Every other host still
+		has to be HTTPS: this does not weaken App Transport Security for the
+		deployed Kairos origin.
+	-->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Kairos connects to a Kairos server running on your own computer when you are testing a development build.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Kairos uses your location only during a Journey to estimate traffic and protect your schedule.</string>
 	<key>NSMicrophoneUsageDescription</key>

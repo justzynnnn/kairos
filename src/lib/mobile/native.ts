@@ -16,6 +16,7 @@ import {
 
 type IntelligencePlugin = {
   capabilities(): Promise<unknown>;
+  openSettings(): Promise<void>;
   updateContext(options: {
     schedule: string;
     preferences: string;
@@ -117,6 +118,11 @@ export const NativeSpeech = {
     return plugin.cancelTranscription();
   },
 };
+
+/** Opens this app's page in iOS Settings, where a refused permission lives. */
+export async function openAppSettings() {
+  if (nativeIntelligenceAvailable()) await plugin.openSettings();
+}
 
 export async function clearNativePlannerHistory() {
   if (nativeIntelligenceAvailable()) await plugin.clearHistory();

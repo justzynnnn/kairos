@@ -474,3 +474,120 @@ describe("appearance and naming", () => {
     expect(assistant).not.toContain('"Voice"');
   });
 });
+
+describe("phase 5 capture and onboarding", () => {
+  const assistant = fs.readFileSync("mobile-src/pages/assistant.tsx", "utf8");
+  const home = fs.readFileSync("mobile-src/pages/home.tsx", "utf8");
+  const onboarding = fs.readFileSync("mobile-src/pages/onboarding.tsx", "utf8");
+  const app = fs.readFileSync("mobile-src/app.tsx", "utf8");
+  const draft = fs.readFileSync("mobile-src/lib/draft.ts", "utf8");
+
+  it("names the assistant controls the way the web app does", () => {
+    expect(assistant).toContain('{recording ? "Stop" : "Record"}');
+    expect(assistant).toContain('{busy ? "Planning…" : "Review proposal"}');
+    expect(assistant).toContain("<Mic size={18}");
+    expect(assistant).toContain("<Square size={18}");
+    expect(assistant).toContain("Schedule manually");
+    expect(assistant).not.toContain('"Dictate"');
+  });
+
+  it("hands a Home capture to the Kairos tab exactly once", () => {
+    // Module state, not a URL parameter: the tabs are separate lazy chunks.
+    expect(draft).toContain("let pending: AssistantDraft | null = null");
+    expect(draft).toContain("claimAssistantDraft");
+    expect(draft).toContain("subscribeToAssistantDraft");
+    expect(draft).toContain('location.hash = "#assistant"');
+    expect(home).toContain("openAssistantWith({ text, submitted: true");
+    expect(home).toContain("submitted: false, record: true");
+    // Claimed during the first render so the text is in the box on first paint.
+    expect(assistant).toContain("useState(peekAssistantDraft)");
+    expect(assistant).toContain("!claimAssistantDraft(draft)");
+    expect(assistant).toContain("if (draft.record) void startVoice();");
+    expect(assistant).toContain("void interpret(metricNow(), draft.text)");
+  });
+
+  it("shows quick capture and deadline countdowns on Home", () => {
+    expect(home).toContain('placeholder="What needs to happen?"');
+    expect(home).toContain('aria-label="Record instead"');
+    expect(home).toContain("Due soon");
+    expect(home).toContain('item.type === "deadline"');
+    expect(home).toContain("Intl.RelativeTimeFormat");
+    // Both empty states lead back to the composer rather than a bare tab jump.
+    expect(home).toContain('actionLabel="Capture something"');
+    expect(home).toContain("onAction={focusCapture}");
+    expect(home).not.toContain('location.hash = "#assistant"');
+  });
+
+  it("runs first-run setup once, behind a secure flag", () => {
+    expect(app).toContain('const onboardedKey = "onboarded"');
+    expect(app).toContain("getSecureValue(onboardedKey)");
+    expect(app).toContain('setSecureValue(onboardedKey, "1")');
+    expect(app).toContain("<Onboarding");
+    // The shell must not paint before the flag is known.
+    expect(app).toContain("signedIn && onboarded === null");
+    expect(onboarding).toContain("Welcome");
+    expect(onboarding).toContain('method: "PUT"');
+    expect(onboarding).toContain("/api/mobile/settings");
+    // The permission prompt is spent on a tap, never on arrival.
+    expect(onboarding).toContain("onClick={() => void askForMicrophone()}");
+    expect(onboarding).not.toMatch(/useEffect\([^)]*askForMicrophone/);
+    expect(onboarding).toContain("Skip setup");
+    expect(onboarding).toContain("openAssistantWith");
+  });
+
+  it("starts the audio session before the tap that depends on it", () => {
+    const swift = fs.readFileSync(
+      "ios/App/App/KairosIntelligencePlugin.swift",
+      "utf8",
+    );
+    // An inactive session reports a zero sample rate, and installTap with that
+    // format throws — which is a recorder that silently never hears anything.
+    for (const body of swift.split("func ").slice(1)) {
+      const activate = body.indexOf("setActive(true");
+      const tap = body.indexOf("installTap(");
+      if (activate < 0 || tap < 0) continue;
+      expect(activate).toBeLessThan(tap);
+    }
+    expect(swift).toContain("guard format.sampleRate > 0");
+    expect(swift).toContain("onDeviceRecognizer(preferring:");
+    expect(swift).toContain("SPEECH_LOCALE_UNSUPPORTED");
+  });
+});
+
+describe("capability visibility and local runs", () => {
+  it("explains why on-device planning is unavailable and what to do", () => {
+    const assistant = fs.readFileSync("mobile-src/pages/assistant.tsx", "utf8");
+    const native = fs.readFileSync("src/lib/mobile/native.ts", "utf8");
+    const swift = fs.readFileSync(
+      "ios/App/App/KairosIntelligencePlugin.swift",
+      "utf8",
+    );
+    // The reason, not just the fallback: "turned off" and "still downloading"
+    // call for different actions.
+    expect(assistant).toContain("capabilities.foundationModel.reason");
+    expect(assistant).toContain(
+      'capabilities.foundationModel.state === "downloading"',
+    );
+    expect(assistant).toContain("Check again");
+    // A refused permission is never re-prompted, so the app offers Settings.
+    expect(assistant).toContain("speechBlocked");
+    expect(assistant).toContain("openAppSettings()");
+    expect(native).toContain("openSettings");
+    expect(swift).toContain("UIApplication.openSettingsURLString");
+  });
+
+  it("pins the browser suite to preview mode regardless of .env.local", () => {
+    const config = fs.readFileSync("playwright.config.ts", "utf8");
+    expect(config).toContain('NEXT_PUBLIC_SUPABASE_URL: ""');
+    expect(config).toContain('KAIROS_ALLOW_PREVIEW: "1"');
+    expect(config).toContain("PLAYWRIGHT_SUPABASE");
+  });
+
+  it("allows a local dev origin without weakening transport security", () => {
+    const plist = fs.readFileSync("ios/App/App/Info.plist", "utf8");
+    expect(plist).toContain("NSAllowsLocalNetworking");
+    // The blanket escape hatches stay out.
+    expect(plist).not.toContain("NSAllowsArbitraryLoads");
+    expect(plist).not.toContain("NSExceptionAllowsInsecureHTTPLoads");
+  });
+});

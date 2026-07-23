@@ -173,6 +173,33 @@ private struct FreeWindowTool: Tool {
 }
 #endif
 
+/// Why a recording could not start, so the web layer can say something the user
+/// can act on instead of one generic failure.
+enum SpeechStartError: Error {
+    case modelUnavailable
+    case noAudioInput
+    case noOnDeviceLocale
+
+    var code: String {
+        switch self {
+        case .modelUnavailable: return "SPEECH_MODEL_UNAVAILABLE"
+        case .noAudioInput: return "SPEECH_NO_INPUT"
+        case .noOnDeviceLocale: return "SPEECH_LOCALE_UNSUPPORTED"
+        }
+    }
+
+    var message: String {
+        switch self {
+        case .modelUnavailable:
+            return "The on-device dictation model is still downloading. Try again in a moment."
+        case .noAudioInput:
+            return "This phone did not provide a microphone input."
+        case .noOnDeviceLocale:
+            return "On-device dictation is not installed for your language. Add it in Settings › General › Keyboard › Dictation, or type instead."
+        }
+    }
+}
+
 @available(iOS 26.0, *)
 private final class ModernSpeechSession {
     private let analyzer: SpeechAnalyzer
@@ -196,11 +223,21 @@ private final class ModernSpeechSession {
 
     func start() async throws {
         let modules: [any SpeechModule] = [transcriber]
-        if let request = try await AssetInventory.assetInstallationRequest(supporting: modules) {
-            try await request.downloadAndInstall()
+        do {
+            if let request = try await AssetInventory.assetInstallationRequest(supporting: modules) {
+                try await request.downloadAndInstall()
+            }
+        } catch {
+            throw SpeechStartError.modelUnavailable
         }
+        // The session has to be configured and active before the input node is
+        // asked for its format: on a device an inactive session reports a zero
+        // sample rate, and installing a tap with that format throws.
+        try AVAudioSession.sharedInstance().setCategory(.record, mode: .measurement, options: [.duckOthers])
+        try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
         let inputNode = engine.inputNode
         let format = inputNode.outputFormat(forBus: 0)
+        guard format.sampleRate > 0 else { throw SpeechStartError.noAudioInput }
         try await analyzer.prepareToAnalyze(in: format)
         let stream = AsyncStream<AnalyzerInput> { continuation in
             self.continuation = continuation
@@ -224,8 +261,6 @@ private final class ModernSpeechSession {
         inputNode.installTap(onBus: 0, bufferSize: 1_024, format: format) { [weak self] buffer, _ in
             self?.continuation?.yield(AnalyzerInput(buffer: buffer))
         }
-        try AVAudioSession.sharedInstance().setCategory(.record, mode: .measurement, options: [.duckOthers])
-        try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
         engine.prepare()
         try engine.start()
     }
@@ -254,6 +289,7 @@ final class KairosIntelligencePlugin: CAPPlugin, CAPBridgedPlugin {
     let jsName = "KairosIntelligence"
     let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "capabilities", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "openSettings", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "updateContext", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "preparePlanner", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "interpret", returnType: CAPPluginReturnPromise),
@@ -367,6 +403,20 @@ final class KairosIntelligencePlugin: CAPPlugin, CAPBridgedPlugin {
                     "selectedLocale": selectedLocale
                 ]
             ])
+        }
+    }
+
+    /// A permission the user already refused can only be changed in Settings,
+    /// and iOS never asks twice — so the app has to take them there.
+    @objc func openSettings(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            guard let url = URL(string: UIApplication.openSettingsURLString),
+                  UIApplication.shared.canOpenURL(url) else {
+                call.reject("Settings could not be opened.")
+                return
+            }
+            UIApplication.shared.open(url)
+            call.resolve()
         }
     }
 
@@ -484,7 +534,11 @@ final class KairosIntelligencePlugin: CAPPlugin, CAPBridgedPlugin {
                     self.transcriptSessionId = nil
                     self.modernSpeech = nil
                     self.stopLegacySpeech(cancelled: true)
-                    call.reject("On-device transcription could not start.", "SPEECH_UNAVAILABLE")
+                    if let reason = error as? SpeechStartError {
+                        call.reject(reason.message, reason.code)
+                    } else {
+                        call.reject("On-device transcription could not start.", "SPEECH_UNAVAILABLE")
+                    }
                 }
             }
         }
@@ -576,13 +630,35 @@ final class KairosIntelligencePlugin: CAPPlugin, CAPBridgedPlugin {
         group.notify(queue: .main) { completion(speechGranted && microphoneGranted) }
     }
 
-    private func startLegacySpeech(localeIdentifier: String?) throws {
-        let locale = localeIdentifier.map(Locale.init(identifier:)) ?? preferredLegacyLocale()
-        guard let recognizer = SFSpeechRecognizer(locale: locale),
-              recognizer.isAvailable,
-              recognizer.supportsOnDeviceRecognition else {
-            throw NSError(domain: "KairosSpeech", code: 1)
+    /// The first recognizer that can work entirely on device. Audio never leaves
+    /// the phone, so a locale without a local model is skipped rather than
+    /// quietly downgraded to Apple's servers.
+    private func onDeviceRecognizer(preferring localeIdentifier: String?) -> SFSpeechRecognizer? {
+        var candidates = [Locale]()
+        if let localeIdentifier { candidates.append(Locale(identifier: localeIdentifier)) }
+        candidates.append(preferredLegacyLocale())
+        candidates.append(contentsOf: SFSpeechRecognizer.supportedLocales()
+            .filter { $0.identifier.lowercased().hasPrefix("en") }
+            .sorted { $0.identifier < $1.identifier })
+        var seen = Set<String>()
+        for locale in candidates where seen.insert(locale.identifier).inserted {
+            if let recognizer = SFSpeechRecognizer(locale: locale),
+               recognizer.isAvailable,
+               recognizer.supportsOnDeviceRecognition {
+                return recognizer
+            }
         }
+        return nil
+    }
+
+    private func startLegacySpeech(localeIdentifier: String?) throws {
+        guard let recognizer = onDeviceRecognizer(preferring: localeIdentifier) else {
+            throw SpeechStartError.noOnDeviceLocale
+        }
+        // Order matters: an inactive session reports a zero sample rate for the
+        // input node, and installTap with that format throws.
+        try AVAudioSession.sharedInstance().setCategory(.record, mode: .measurement, options: [.duckOthers])
+        try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
         let engine = AVAudioEngine()
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
@@ -590,6 +666,7 @@ final class KairosIntelligencePlugin: CAPPlugin, CAPBridgedPlugin {
         request.taskHint = .dictation
         let input = engine.inputNode
         let format = input.outputFormat(forBus: 0)
+        guard format.sampleRate > 0 else { throw SpeechStartError.noAudioInput }
         input.installTap(onBus: 0, bufferSize: 1_024, format: format) { buffer, _ in
             request.append(buffer)
         }
@@ -599,8 +676,6 @@ final class KairosIntelligencePlugin: CAPPlugin, CAPBridgedPlugin {
             }
             if error != nil { self?.stopLegacySpeech(cancelled: true) }
         }
-        try AVAudioSession.sharedInstance().setCategory(.record, mode: .measurement, options: [.duckOthers])
-        try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
         engine.prepare()
         try engine.start()
         legacyRecognizer = recognizer
