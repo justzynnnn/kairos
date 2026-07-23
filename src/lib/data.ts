@@ -7,7 +7,10 @@ import {
   mapCalendarRow,
 } from "@/lib/demo-data";
 import { isSupabaseConfigured } from "@/lib/env";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import {
+  createServerSupabaseClient,
+  requestBearerAuthorization,
+} from "@/lib/supabase/server";
 import type { CalendarItem, Preference, Viewer } from "@/lib/types";
 // Planner navigates day by day and repair looks back hours, so a 60-day window
 // keeps every consumer whole while bounding the read.
@@ -19,7 +22,13 @@ export const getViewer = cache(async (): Promise<Viewer> => {
     return { ...demoViewer, scheduleVersion: getDemoScheduleVersion() };
   const supabase = await createServerSupabaseClient();
   const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) redirect("/auth");
+  // A browser is sent to the sign-in page; the phone has no page to land on, so
+  // a spent bearer token has to come back as a 401 its client can act on.
+  if (error || !data.user) {
+    if (await requestBearerAuthorization())
+      throw new AppError("Your mobile session has expired.", 401);
+    redirect("/auth");
+  }
   const { data: p } = await supabase
     .from("profiles")
     .select(

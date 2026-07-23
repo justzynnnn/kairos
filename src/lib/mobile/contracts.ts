@@ -215,6 +215,11 @@ export type MobileBootstrap = {
     state: string;
     updatedAt: string;
   }>;
+  // Badge counts: friend requests waiting on this user, and meetings whose next
+  // move is theirs. Both are derived server-side so the Inbox tab can show a
+  // badge before its own segments have loaded.
+  pendingConnectionCount: number;
+  actionableMeetingCount: number;
 };
 
 export type MobileSyncResult = {

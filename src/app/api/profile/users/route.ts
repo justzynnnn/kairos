@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
+import {
+  connectionRequestSchema,
+  userSearchQuerySchema,
+} from "@/lib/profile/people-schema";
 import { requestConnection, searchUsers } from "@/lib/profile/server";
 import { userMessage } from "@/lib/http";
 import {
@@ -7,14 +10,6 @@ import {
   clientKey,
   tooManyRequests,
 } from "@/lib/rate-limit-server";
-
-const querySchema = z
-  .string()
-  .trim()
-  .min(2)
-  .max(80)
-  .regex(/^[\p{L}\p{N}@._ -]+$/u);
-const requestSchema = z.object({ userId: z.string().uuid() });
 
 export async function GET(request: Request) {
   if (
@@ -24,7 +19,7 @@ export async function GET(request: Request) {
     ))
   )
     return tooManyRequests();
-  const parsed = querySchema.safeParse(
+  const parsed = userSearchQuerySchema.safeParse(
     new URL(request.url).searchParams.get("q") ?? "",
   );
   if (!parsed.success) return NextResponse.json({ users: [] });
@@ -45,7 +40,7 @@ export async function POST(request: Request) {
     ))
   )
     return tooManyRequests();
-  const parsed = requestSchema.safeParse(
+  const parsed = connectionRequestSchema.safeParse(
     await request.json().catch(() => null),
   );
   if (!parsed.success)

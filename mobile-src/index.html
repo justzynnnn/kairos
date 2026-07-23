@@ -6,7 +6,17 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
     />
-    <meta name="theme-color" content="#081f49" />
+    <!-- Must stay byte-identical to --canvas in styles.css. -->
+    <meta
+      name="theme-color"
+      media="(prefers-color-scheme: light)"
+      content="#f5f7fb"
+    />
+    <meta
+      name="theme-color"
+      media="(prefers-color-scheme: dark)"
+      content="#07142b"
+    />
     <title>Kairos</title>
   </head>
   <body>

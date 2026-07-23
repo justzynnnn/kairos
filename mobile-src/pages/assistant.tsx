@@ -31,6 +31,7 @@ import { apiRequest } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { mobileConfig } from "../lib/config";
 import { useMobileData } from "../lib/data";
+import { Mic, Square } from "../lib/icons";
 import { metricNow, recordMetric } from "../lib/metrics";
 
 type HistoryEntry = {
@@ -338,7 +339,7 @@ export default function Assistant() {
   return (
     <main className="page">
       <header>
-        <p className="eyebrow">On-device conversation</p>
+        <p className="eyebrow">On device</p>
         <h1>Plan with Kairos</h1>
         <p className="supporting">
           Speak or type in English or Taglish. Nothing changes until you
@@ -367,7 +368,7 @@ export default function Assistant() {
         </label>
         {recording && (
           <div className="notice">
-            Listening on this phone… Words appear above as you speak.
+            Listening… words appear above as you speak.
           </div>
         )}
         {reviewingTranscript && (
@@ -388,8 +389,14 @@ export default function Assistant() {
                   })
                 : startVoice())
             }
+            aria-label={recording ? "Stop recording" : "Dictate"}
           >
-            {recording ? "Stop" : "Voice"}
+            {recording ? (
+              <Square size={18} strokeWidth={2.5} aria-hidden />
+            ) : (
+              <Mic size={18} strokeWidth={2.5} aria-hidden />
+            )}
+            {recording ? "Stop" : "Dictate"}
           </button>
           {recording && (
             <button

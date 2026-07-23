@@ -5,6 +5,7 @@ import { isSupabaseConfigured } from "@/lib/env";
 import {
   actOnPreviewConnection,
   completePreviewCalendarItem,
+  createPreviewPreference,
   deletePreviewPreference,
   getPreviewSettings,
   listPreviewActivity,
@@ -311,6 +312,28 @@ export async function getEditablePreferences() {
     canSkip: entry.can_skip,
   })) as EditablePreference[];
 }
+export async function createPreference(value: Omit<EditablePreference, "id">) {
+  if (!isSupabaseConfigured()) return createPreviewPreference(value);
+  const viewer = await getViewer(),
+    supabase = await createServerSupabaseClient(),
+    { data, error } = await supabase
+      .from("preferences")
+      .insert({
+        user_id: viewer.id,
+        category: value.category,
+        default_duration_minutes: value.defaultDurationMinutes,
+        flexibility: value.flexibility,
+        can_shorten: value.canShorten,
+        can_split: value.canSplit,
+        can_skip: value.canSkip,
+      })
+      .select("id")
+      .maybeSingle();
+  if (error?.code === "23505")
+    throw new AppError("A preference for that category already exists.");
+  if (error || !data) throw new AppError("Preference could not be created.");
+  return { id: data.id, ...value } as EditablePreference;
+}
 export async function savePreference(
   id: string,
   value: Omit<EditablePreference, "id">,
@@ -330,6 +353,8 @@ export async function savePreference(
       })
       .eq("id", id)
       .eq("user_id", viewer.id);
+  if (error?.code === "23505")
+    throw new AppError("A preference for that category already exists.");
   if (error) throw new AppError("Preference could not be saved.");
   return { id, ...value };
 }

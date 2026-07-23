@@ -12,5 +12,17 @@ const config: CapacitorConfig = {
       }
     : undefined,
   ios: { contentInset: "automatic", preferredContentMode: "mobile" },
+  plugins: {
+    // The web layer hides the splash once it has painted a real frame, so the
+    // launch image covers the whole JS boot instead of a blank canvas.
+    //
+    // backgroundColor is deliberately unset: the plugin instantiates the launch
+    // storyboard and then stamps this literal over the resulting view, which
+    // would replace the dynamic "Canvas" colour with a light-only value and
+    // leave a pale rectangle behind the splash in dark mode.
+    SplashScreen: {
+      launchAutoHide: false,
+    },
+  },
 };
 export default config;

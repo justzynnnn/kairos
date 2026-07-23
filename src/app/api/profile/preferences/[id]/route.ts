@@ -1,15 +1,7 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { removePreference, savePreference } from "@/lib/profile/server";
+import { preferenceSchema as schema } from "@/lib/profile/settings-schema";
 import { userMessage } from "@/lib/http";
-const schema = z.object({
-  category: z.string().trim().min(1).max(60),
-  defaultDurationMinutes: z.number().int().min(15).max(1440).nullable(),
-  flexibility: z.enum(["fixed", "protected", "flexible"]).nullable(),
-  canShorten: z.boolean(),
-  canSplit: z.boolean(),
-  canSkip: z.boolean(),
-});
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
+import { manageConnectionSchema } from "@/lib/profile/people-schema";
 import { getConnections, manageConnection } from "@/lib/profile/server";
 import { userMessage } from "@/lib/http";
 import {
@@ -7,10 +7,6 @@ import {
   clientKey,
   tooManyRequests,
 } from "@/lib/rate-limit-server";
-const schema = z.object({
-  id: z.string().uuid(),
-  action: z.enum(["accept", "block", "remove"]),
-});
 export async function GET() {
   try {
     return NextResponse.json({ connections: await getConnections() });
@@ -29,7 +25,9 @@ export async function POST(request: Request) {
     ))
   )
     return tooManyRequests();
-  const parsed = schema.safeParse(await request.json().catch(() => null));
+  const parsed = manageConnectionSchema.safeParse(
+    await request.json().catch(() => null),
+  );
   if (!parsed.success)
     return NextResponse.json(
       { error: "Connection action is invalid." },

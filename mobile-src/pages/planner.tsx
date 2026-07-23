@@ -1,45 +1,34 @@
+import { useMemo, useState } from "react";
 import type { CalendarItem } from "@/lib/types";
+import Sheet from "../components/sheet";
 import { useMobileData } from "../lib/data";
+import { clockTime, dayKey, minutesIntoDay } from "../lib/datetime";
+import { Check, Trash2 } from "../lib/icons";
 
-function minutes(value: string, timezone: string) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(new Date(value));
-  const values = Object.fromEntries(
-    parts.map((part) => [part.type, part.value]),
-  );
-  return Number(values.hour) * 60 + Number(values.minute);
-}
-
-function sameDay(item: CalendarItem, timezone: string) {
-  const value = item.startAt ?? item.dueAt;
-  if (!value) return false;
-  const format = (date: Date) =>
-    new Intl.DateTimeFormat("en-CA", {
-      timeZone: timezone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(date);
-  return format(new Date(value)) === format(new Date());
-}
+const startHour = 6;
+const endHour = 23;
+const totalMinutes = (endHour - startHour) * 60;
 
 export default function Planner() {
   const { data, conflicts, discardConflict, queueItemAction } = useMobileData();
+  const [selected, setSelected] = useState<CalendarItem | null>(null);
+  const timezone = data?.viewer.timezone ?? "UTC";
+  const items = useMemo(() => {
+    if (!data) return [];
+    const todayKey = dayKey(new Date(), timezone);
+    return data.calendar
+      .filter((item) => {
+        const value = item.startAt ?? item.dueAt;
+        return (
+          item.status !== "cancelled" &&
+          item.startAt &&
+          value &&
+          dayKey(new Date(value), timezone) === todayKey
+        );
+      })
+      .sort((a, b) => (a.startAt ?? "").localeCompare(b.startAt ?? ""));
+  }, [data, timezone]);
   if (!data) return null;
-  const timezone = data.viewer.timezone;
-  const startHour = 6;
-  const endHour = 23;
-  const totalMinutes = (endHour - startHour) * 60;
-  const items = data.calendar
-    .filter(
-      (item) =>
-        item.status !== "cancelled" && sameDay(item, timezone) && item.startAt,
-    )
-    .sort((a, b) => (a.startAt ?? "").localeCompare(b.startAt ?? ""));
   return (
     <main className="page">
       <header>
@@ -107,8 +96,10 @@ export default function Planner() {
             );
           })}
           {items.map((item) => {
-            const start = minutes(item.startAt!, timezone);
-            const end = item.endAt ? minutes(item.endAt, timezone) : start + 30;
+            const start = minutesIntoDay(new Date(item.startAt!), timezone);
+            const end = item.endAt
+              ? minutesIntoDay(new Date(item.endAt), timezone)
+              : start + 30;
             const top = ((start - startHour * 60) * 960) / totalMinutes;
             const height = Math.max(38, ((end - start) * 960) / totalMinutes);
             return (
@@ -116,29 +107,59 @@ export default function Planner() {
                 type="button"
                 className="timeline-item"
                 key={item.id}
-                style={{
-                  top,
-                  height,
-                  border: 0,
-                  borderLeft: "4px solid #087b8d",
-                }}
-                onClick={() => {
-                  if (confirm("Mark “" + item.title + "” complete?"))
-                    void queueItemAction(item, "complete");
-                }}
+                style={{ top, height }}
+                onClick={() => setSelected(item)}
               >
                 <strong>{item.title}</strong>
                 <br />
-                {new Intl.DateTimeFormat("en-US", {
-                  timeZone: timezone,
-                  hour: "numeric",
-                  minute: "2-digit",
-                }).format(new Date(item.startAt!))}
+                {clockTime(new Date(item.startAt!), timezone)}
               </button>
             );
           })}
         </div>
       </section>
+      {selected && (
+        <Sheet
+          title={selected.title}
+          description={
+            clockTime(new Date(selected.startAt!), timezone) +
+            (selected.endAt
+              ? " – " + clockTime(new Date(selected.endAt), timezone)
+              : "")
+          }
+          onDismiss={() => setSelected(null)}
+        >
+          <button
+            type="button"
+            className="primary full"
+            onClick={() => {
+              void queueItemAction(selected, "complete");
+              setSelected(null);
+            }}
+          >
+            <Check size={18} strokeWidth={2.5} aria-hidden />
+            Complete
+          </button>
+          <button
+            type="button"
+            className="danger full"
+            onClick={() => {
+              void queueItemAction(selected, "cancel");
+              setSelected(null);
+            }}
+          >
+            <Trash2 size={18} strokeWidth={2.5} aria-hidden />
+            Cancel item
+          </button>
+          <button
+            type="button"
+            className="secondary full"
+            onClick={() => setSelected(null)}
+          >
+            Dismiss
+          </button>
+        </Sheet>
+      )}
     </main>
   );
 }

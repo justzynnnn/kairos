@@ -36,7 +36,53 @@ type AuthState = {
 };
 
 const AuthContext = createContext<AuthState | null>(null);
-const refreshKey = "auth-refresh-token";
+const sessionKey = "auth-session-v2";
+const legacyRefreshKey = "auth-refresh-token";
+// Below this much remaining life a stored access token is treated as spent, so
+// a refresh that is already in flight cannot be beaten by an expiring request.
+const expiryGuardSeconds = 90;
+
+type StoredSession = {
+  access_token: string;
+  refresh_token: string;
+  expires_at: number;
+  user: TokenResponse["user"];
+};
+
+function toStoredSession(session: TokenResponse): StoredSession {
+  return {
+    access_token: session.access_token,
+    refresh_token: session.refresh_token,
+    expires_at: Math.floor(Date.now() / 1_000) + session.expires_in,
+    user: session.user,
+  };
+}
+
+function toSession(stored: StoredSession): TokenResponse {
+  return {
+    access_token: stored.access_token,
+    refresh_token: stored.refresh_token,
+    expires_in: Math.max(0, stored.expires_at - Math.floor(Date.now() / 1_000)),
+    user: stored.user,
+  };
+}
+
+function parseStoredSession(raw: string | null): StoredSession | null {
+  if (!raw) return null;
+  try {
+    const value = JSON.parse(raw) as Partial<StoredSession>;
+    if (
+      typeof value.access_token === "string" &&
+      typeof value.refresh_token === "string" &&
+      typeof value.expires_at === "number" &&
+      value.user?.id
+    )
+      return value as StoredSession;
+  } catch {
+    // A corrupt record is indistinguishable from no record.
+  }
+  return null;
+}
 
 async function authFetch(input: string, init: RequestInit) {
   const controller = new AbortController();
@@ -125,14 +171,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const acceptSession = useCallback(async (next: TokenResponse) => {
-    await setSecureValue(refreshKey, next.refresh_token);
+    await setSecureValue(sessionKey, JSON.stringify(toStoredSession(next)));
     setSession(next);
     setError(null);
     setNotice(null);
   }, []);
 
+  const signOutLocally = useCallback(async () => {
+    await deleteSecureValue(sessionKey);
+    await deleteSecureValue(legacyRefreshKey);
+    setSession(null);
+  }, []);
+
+  const storedSession = useCallback(
+    async () => parseStoredSession(await getSecureValue(sessionKey)),
+    [],
+  );
+
   const refresh = useCallback(async () => {
-    const token = await getSecureValue(refreshKey);
+    const stored = await storedSession();
+    const token =
+      stored?.refresh_token ?? (await getSecureValue(legacyRefreshKey));
     if (!token) {
       setSession(null);
       return;
@@ -141,16 +200,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await acceptSession(
         await tokenRequest("refresh_token", { refresh_token: token }),
       );
+      await deleteSecureValue(legacyRefreshKey);
     } catch {
-      await deleteSecureValue(refreshKey);
-      setSession(null);
+      await signOutLocally();
     }
-  }, [acceptSession]);
+  }, [acceptSession, signOutLocally, storedSession]);
 
+  // Cold start: hydrate from the Keychain and paint. The network is only
+  // involved when the stored access token is spent or absent, so a warm launch
+  // reaches the shell without waiting on Supabase.
   useEffect(() => {
     if (!mobileConfig.ready) return;
-    queueMicrotask(() => void refresh().finally(() => setLoading(false)));
-  }, [refresh]);
+    let active = true;
+    void (async () => {
+      try {
+        const stored = await storedSession();
+        if (!active) return;
+        if (
+          stored &&
+          stored.expires_at - Math.floor(Date.now() / 1_000) >
+            expiryGuardSeconds
+        ) {
+          setSession(toSession(stored));
+          return;
+        }
+        await refresh();
+      } catch {
+        // A Keychain that will not answer is the same as a signed-out phone;
+        // fall through to the sign-in screen rather than stranding the gate.
+        if (active) setSession(null);
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [refresh, storedSession]);
 
   useEffect(() => {
     if (refreshTimer.current) clearTimeout(refreshTimer.current);
@@ -221,11 +307,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             },
           }).catch(() => null);
         await clearLocalAccountData();
-        await deleteSecureValue(refreshKey);
-        setSession(null);
+        await signOutLocally();
       },
     }),
-    [acceptSession, error, loading, notice, session],
+    [acceptSession, error, loading, notice, session, signOutLocally],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
@@ -297,12 +382,12 @@ export function SignIn() {
           </button>
         </div>
         <div>
-          <p className="eyebrow">Private mobile workspace</p>
+          <p className="eyebrow">Kairos</p>
           <h1>{mode === "sign-in" ? "Welcome back" : "Protect your time"}</h1>
           <p className="supporting">
             {mode === "sign-in"
-              ? "Your refresh token stays in this phone's Keychain."
-              : "Your schedule starts private and stays under your control."}
+              ? "Your session is kept in this phone's Keychain."
+              : "Your schedule starts private."}
           </p>
         </div>
         {auth.error && <div className="error">{auth.error}</div>}

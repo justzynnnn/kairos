@@ -7,6 +7,9 @@ export async function apiRequest<T>(
 ): Promise<T> {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 15_000);
+  // A FormData body carries its own multipart boundary in the content type, so
+  // it has to be left for the platform to set.
+  const json = Boolean(init.body) && !(init.body instanceof FormData);
   let response: Response;
   try {
     response = await fetch(mobileConfig.apiOrigin + path, {
@@ -15,7 +18,7 @@ export async function apiRequest<T>(
       headers: {
         Accept: "application/json",
         Authorization: "Bearer " + accessToken,
-        ...(init.body ? { "Content-Type": "application/json" } : {}),
+        ...(json ? { "Content-Type": "application/json" } : {}),
         ...init.headers,
       },
     });

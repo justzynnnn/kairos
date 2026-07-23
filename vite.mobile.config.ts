@@ -17,7 +17,7 @@ export default defineConfig({
     outDir: "../mobile-dist",
     emptyOutDir: true,
     target: "es2022",
-    sourcemap: true,
+    sourcemap: false,
     rollupOptions: {
       output: {
         manualChunks(id) {

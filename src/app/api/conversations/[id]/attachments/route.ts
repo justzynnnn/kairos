@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
+import { attachmentUploadFields } from "@/lib/conversations/attachment-schema";
 import { uploadConversationAttachment } from "@/lib/conversations/server";
 import { userMessage } from "@/lib/http";
 import {
@@ -8,11 +8,6 @@ import {
   tooManyRequests,
 } from "@/lib/rate-limit-server";
 export const runtime = "nodejs";
-const fields = z.object({
-  body: z.string().max(4000),
-  clientNonce: z.string().uuid(),
-  relatedMeetingId: z.string().uuid().nullable().optional(),
-});
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -27,13 +22,7 @@ export async function POST(
   try {
     const form = await request.formData(),
       file = form.get("file"),
-      parsed = fields.safeParse({
-        body: String(form.get("body") ?? ""),
-        clientNonce: String(form.get("clientNonce") ?? ""),
-        relatedMeetingId: form.get("relatedMeetingId")
-          ? String(form.get("relatedMeetingId"))
-          : null,
-      });
+      parsed = attachmentUploadFields(form);
     if (!(file instanceof File) || !parsed.success)
       return NextResponse.json(
         { error: "Choose a valid attachment and message." },

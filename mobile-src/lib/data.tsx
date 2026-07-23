@@ -8,13 +8,11 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import {
-  mobileSchedulePayloadSchema,
-  mobileSyncRequestSchema,
-  type MobileBootstrap,
-  type MobileSyncResult,
-  type ScheduleOperation,
-} from "@/lib/mobile/contracts";
+import type {
+  MobileBootstrap,
+  MobileSyncResult,
+  ScheduleOperation,
+} from "@/lib/mobile/contracts-types";
 import {
   pendingLocalOperations,
   queueLocalOperation,
@@ -49,6 +47,15 @@ type DataState = {
 };
 
 const DataContext = createContext<DataState | null>(null);
+// A foreground return inside this window reuses what is already on screen
+// rather than replaying the full bootstrap query.
+const refreshAfterMs = 45_000;
+
+// Kept off the launch chunk; both callers run after a user action or during a
+// background sync.
+async function contracts() {
+  return import("@/lib/mobile/contracts");
+}
 
 function mergeBootstrap(
   previous: MobileBootstrap | null,
@@ -67,6 +74,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [conflicts, setConflicts] = useState<LocalConflict[]>([]);
   const dataRef = useRef<MobileBootstrap | null>(null);
+  const lastSyncAt = useRef(0);
   const cacheKey = auth.user ? "bootstrap:" + auth.user.id : "bootstrap";
 
   const syncPending = useCallback(async (token: string) => {
@@ -79,7 +87,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         "syncing",
       );
     });
-    const request = mobileSyncRequestSchema.parse({
+    const request = (await contracts()).mobileSyncRequestSchema.parse({
       operations: active.map((entry) => entry.operation),
     });
     const startedAt = metricNow();
@@ -181,6 +189,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
             })),
         );
       }
+      lastSyncAt.current = Date.now();
       setState(
         pending.some((entry) => entry.status === "needs_review")
           ? "review"
@@ -201,21 +210,30 @@ export function DataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true;
     if (!auth.user) return;
+    // Paint whatever this phone already trusts, then reconcile in the
+    // background. The cache is read regardless of the offlineSync flag, which
+    // governs whether local *mutations* may be queued, not whether we may show
+    // what we already have.
     void readLocalSnapshot<MobileBootstrap>(cacheKey).then((cached) => {
       if (!active) return;
-      if (cached && mobileConfig.features.offlineSync) {
+      if (cached) {
         setData(cached);
         setState("cached");
       }
       void refresh();
     });
     const online = () => void refresh();
+    const foregrounded = () => {
+      if (document.hidden) return;
+      if (Date.now() - lastSyncAt.current < refreshAfterMs) return;
+      void refresh();
+    };
     window.addEventListener("online", online);
-    window.addEventListener("focus", online);
+    document.addEventListener("visibilitychange", foregrounded);
     return () => {
       active = false;
       window.removeEventListener("online", online);
-      window.removeEventListener("focus", online);
+      document.removeEventListener("visibilitychange", foregrounded);
     };
   }, [auth.user, cacheKey, refresh]);
 
@@ -234,6 +252,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           return;
         }
         const created: CalendarItem[] = [];
+        const { mobileSchedulePayloadSchema } = await contracts();
         for (const raw of items) {
           const id = crypto.randomUUID();
           const payload = mobileSchedulePayloadSchema.parse(raw);

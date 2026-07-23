@@ -253,12 +253,33 @@ export function updatePreviewPermission(
 export function listPreviewPreferences() {
   return structuredClone(state().preferences);
 }
+export function createPreviewPreference(value: Omit<EditablePreference, "id">) {
+  // Mirrors the unique(user_id,category) constraint the real table carries.
+  if (
+    state().preferences.some(
+      (entry) =>
+        entry.category.toLowerCase() === value.category.toLowerCase().trim(),
+    )
+  )
+    throw new AppError("A preference for that category already exists.");
+  const preference: EditablePreference = { id: randomUUID(), ...value };
+  state().preferences.push(preference);
+  return structuredClone(preference);
+}
 export function updatePreviewPreference(
   id: string,
   value: Omit<EditablePreference, "id">,
 ) {
   const index = state().preferences.findIndex((entry) => entry.id === id);
   if (index < 0) throw new AppError("Preference not found.");
+  if (
+    state().preferences.some(
+      (entry) =>
+        entry.id !== id &&
+        entry.category.toLowerCase() === value.category.toLowerCase().trim(),
+    )
+  )
+    throw new AppError("A preference for that category already exists.");
   state().preferences[index] = { id, ...value };
   return structuredClone(state().preferences[index]);
 }

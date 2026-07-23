@@ -242,3 +242,26 @@ describe("Phase 3 meeting state machine", () => {
     expect(getPreviewBooking(revokedToken)).toBeNull();
   });
 });
+
+describe("meeting response validation", () => {
+  it("accepts the actions the web and mobile clients send, and nothing else", async () => {
+    const { meetingRespondSchema } = await import(
+      "@/lib/meetings/respond-schema"
+    );
+    expect(
+      meetingRespondSchema.safeParse({
+        action: "counter",
+        counterStart: "2026-07-24T02:00:00.000Z",
+      }).success,
+    ).toBe(true);
+    expect(
+      meetingRespondSchema.safeParse({
+        action: "counter",
+        counterStart: "soon",
+      }).success,
+    ).toBe(false);
+    expect(
+      meetingRespondSchema.safeParse({ action: "reschedule" }).success,
+    ).toBe(false);
+  });
+});

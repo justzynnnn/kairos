@@ -3,6 +3,7 @@ import { resetDemoCalendar, getDemoCalendarItems } from "@/lib/demo-data";
 import {
   actOnPreviewConnection,
   completePreviewCalendarItem,
+  createPreviewPreference,
   deletePreviewPreference,
   getPreviewSettings,
   listPreviewActivity,
@@ -125,5 +126,83 @@ describe("Inbox friend discovery", () => {
     const first = requestPreviewConnection(noah.id),
       second = requestPreviewConnection(noah.id);
     expect(second.id).toBe(first.id);
+  });
+});
+describe("Remembered preferences", () => {
+  it("creates, edits, and deletes a category default", () => {
+    const created = createPreviewPreference({
+      category: "Reading",
+      defaultDurationMinutes: 45,
+      flexibility: "flexible",
+      canShorten: true,
+      canSplit: false,
+      canSkip: true,
+    });
+    expect(listPreviewPreferences()).toHaveLength(3);
+    updatePreviewPreference(created.id, {
+      category: "Reading",
+      defaultDurationMinutes: 30,
+      flexibility: "protected",
+      canShorten: false,
+      canSplit: false,
+      canSkip: false,
+    });
+    expect(
+      listPreviewPreferences().find((entry) => entry.id === created.id),
+    ).toMatchObject({ defaultDurationMinutes: 30, flexibility: "protected" });
+    expect(deletePreviewPreference(created.id)).toBe(true);
+    expect(
+      listPreviewPreferences().some((entry) => entry.id === created.id),
+    ).toBe(false);
+  });
+  it("refuses a second preference for the same category", () => {
+    expect(() =>
+      createPreviewPreference({
+        category: "fitness",
+        defaultDurationMinutes: 30,
+        flexibility: null,
+        canShorten: false,
+        canSplit: false,
+        canSkip: false,
+      }),
+    ).toThrow(/already exists/i);
+  });
+});
+describe("Profile request validation", () => {
+  it("holds web and mobile writes to one schema", async () => {
+    const { profileSettingsSchema, preferenceSchema } = await import(
+      "@/lib/profile/settings-schema"
+    );
+    const settings = {
+      fullName: "Justin L.",
+      username: "Justin_L",
+      timezone: "Asia/Manila",
+      activeStart: "07:00",
+      activeEnd: "22:30",
+      travelBufferMinutes: 15,
+      locationEnabled: true,
+      automationReminders: true,
+      automationLateness: true,
+      activityAggregateSharing: false,
+      scheduleVisibility: "private" as const,
+    };
+    expect(profileSettingsSchema.parse(settings).username).toBe("justin_l");
+    expect(
+      profileSettingsSchema.safeParse({ ...settings, username: "no" }).success,
+    ).toBe(false);
+    expect(
+      profileSettingsSchema.safeParse({ ...settings, activeEnd: "06:00" })
+        .success,
+    ).toBe(false);
+    expect(
+      preferenceSchema.safeParse({
+        category: "Reading",
+        defaultDurationMinutes: 10,
+        flexibility: null,
+        canShorten: false,
+        canSplit: false,
+        canSkip: false,
+      }).success,
+    ).toBe(false);
   });
 });

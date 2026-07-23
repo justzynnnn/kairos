@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import {
+  getConversationById,
+  markConversationRead,
+} from "@/lib/conversations/server";
 import { errorStatus, userMessage } from "@/lib/http";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { authenticateBearerRequest } from "@/lib/supabase/request";
@@ -31,60 +35,40 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { user } = await authenticateBearerRequest(request);
+    await authenticateBearerRequest(request);
     const { id } = await params;
-    if (!(await membership(id, user.id)))
+    const url = new URL(request.url);
+    const beforeValue = url.searchParams.get("before");
+    const before =
+      beforeValue && !Number.isNaN(Date.parse(beforeValue))
+        ? new Date(beforeValue).toISOString()
+        : null;
+    // The thread comes from the same engine the web app reads, so attachments,
+    // system messages, and private-message filtering behave identically here.
+    const view = await getConversationById(request, id, before);
+    if (!view)
       return NextResponse.json(
         { error: "Conversation access denied." },
         { status: 403 },
       );
-    const admin = createAdminSupabaseClient();
-    const before = new URL(request.url).searchParams.get("before");
-    let query = admin
-      .from("conversation_messages")
-      .select("id,sender_id,sender_kind,body,created_at")
-      .eq("conversation_id", id)
-      .or(`private_to.is.null,private_to.eq.${user.id}`)
-      .order("created_at", { ascending: false })
-      .limit(51);
-    if (before && !Number.isNaN(Date.parse(before)))
-      query = query.lt("created_at", new Date(before).toISOString());
-    const [{ data: rows, error }, { data: members }] = await Promise.all([
-      query,
-      admin
-        .from("direct_conversation_members")
-        .select("user_id")
-        .eq("conversation_id", id)
-        .is("removed_at", null),
-      admin
-        .from("direct_conversation_members")
-        .update({ last_read_at: new Date().toISOString() })
-        .eq("conversation_id", id)
-        .eq("user_id", user.id),
-    ]);
-    if (error) throw error;
-    const otherId = (members ?? []).find(
-      (member) => member.user_id !== user.id,
-    )?.user_id;
-    const { data: profile } = otherId
-      ? await admin
-          .from("profiles")
-          .select("full_name")
-          .eq("id", otherId)
-          .maybeSingle()
-      : { data: null };
-    const selected = (rows ?? []).slice(0, 50).reverse();
+    await markConversationRead(request, id);
     return NextResponse.json({
-      id,
-      name: profile?.full_name ?? "Kairos friend",
-      messages: selected.map((message) => ({
+      id: view.id,
+      name: view.otherUser.name,
+      messages: view.messages.map((message) => ({
         id: message.id,
         body: message.body,
-        createdAt: message.created_at,
-        mine: message.sender_id === user.id,
-        system: message.sender_kind === "system",
+        createdAt: message.createdAt,
+        mine: message.isMine,
+        system: message.senderKind === "system",
+        attachments: message.attachments.map((attachment) => ({
+          id: attachment.id,
+          name: attachment.name,
+          mimeType: attachment.mimeType,
+          sizeBytes: attachment.sizeBytes,
+        })),
       })),
-      nextCursor: (rows ?? []).length > 50 ? selected[0]?.created_at : null,
+      nextCursor: view.nextCursor,
     });
   } catch (error) {
     return NextResponse.json(

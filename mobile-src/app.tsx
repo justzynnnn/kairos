@@ -8,31 +8,59 @@ import {
 } from "react";
 import { AuthProvider, SignIn, useAuth } from "./lib/auth";
 import { DataProvider, useMobileData } from "./lib/data";
+import {
+  CalendarRange,
+  House,
+  MessagesSquare,
+  Moon,
+  Sparkles,
+  Sun,
+  UserRound,
+  type LucideIcon,
+} from "./lib/icons";
+import { badgeCount } from "./lib/counts";
 import { launchStartedAt, recordMetric } from "./lib/metrics";
+import { hideSplashScreen } from "./lib/splash";
+import {
+  applyTheme,
+  nextTheme,
+  resolveTheme,
+  storedTheme,
+  type ThemePreference,
+} from "./lib/theme";
 
 const Home = lazy(() => import("./pages/home"));
 const Planner = lazy(() => import("./pages/planner"));
 const Assistant = lazy(() => import("./pages/assistant"));
 const Inbox = lazy(() => import("./pages/inbox"));
-const Settings = lazy(() => import("./pages/settings"));
+const Profile = lazy(() => import("./pages/profile"));
 
-type Tab = "home" | "planner" | "assistant" | "inbox" | "settings";
+type Tab = "home" | "planner" | "assistant" | "inbox" | "profile";
 const tabs: Array<{
   id: Tab;
   label: string;
-  icon: string;
+  icon: LucideIcon;
   component: ComponentType;
 }> = [
-  { id: "home", label: "Home", icon: "⌂", component: Home },
-  { id: "planner", label: "Planner", icon: "▦", component: Planner },
-  { id: "assistant", label: "Kairos", icon: "✦", component: Assistant },
-  { id: "inbox", label: "Inbox", icon: "◫", component: Inbox },
-  { id: "settings", label: "Settings", icon: "⚙", component: Settings },
+  { id: "home", label: "Home", icon: House, component: Home },
+  { id: "planner", label: "Planner", icon: CalendarRange, component: Planner },
+  { id: "assistant", label: "Kairos", icon: Sparkles, component: Assistant },
+  { id: "inbox", label: "Inbox", icon: MessagesSquare, component: Inbox },
+  { id: "profile", label: "Profile", icon: UserRound, component: Profile },
 ];
 
+// The Profile tab used to be Settings; a phone restored onto #settings still
+// lands somewhere real.
+const renamedTabs: Record<string, Tab> = { settings: "profile" };
+
 function currentTab(): Tab {
-  const hash = location.hash.slice(1) as Tab;
-  return tabs.some((tab) => tab.id === hash) ? hash : "home";
+  const hash = location.hash.slice(1);
+  const renamed = renamedTabs[hash];
+  if (renamed) {
+    history.replaceState(null, "", "#" + renamed);
+    return renamed;
+  }
+  return tabs.some((tab) => tab.id === hash) ? (hash as Tab) : "home";
 }
 
 function LoadingPage() {
@@ -75,11 +103,52 @@ function InitialLoadError({
   );
 }
 
+const themeLabels: Record<ThemePreference, string> = {
+  system: "Match the system appearance",
+  light: "Light appearance",
+  dark: "Dark appearance",
+};
+
+function ThemeButton() {
+  const [preference, setPreference] = useState<ThemePreference>(storedTheme);
+  const resolved = resolveTheme(preference);
+  return (
+    <button
+      type="button"
+      className="theme-toggle"
+      aria-label={themeLabels[preference] + ". Change appearance."}
+      onClick={() => {
+        const next = nextTheme(preference);
+        applyTheme(next);
+        setPreference(next);
+      }}
+    >
+      {resolved === "dark" ? (
+        <Moon size={18} strokeWidth={2} aria-hidden />
+      ) : (
+        <Sun size={18} strokeWidth={2} aria-hidden />
+      )}
+    </button>
+  );
+}
+
 function Shell() {
   const auth = useAuth();
   const mobileData = useMobileData();
   const [tab, setTab] = useState<Tab>(currentTab);
   const launchMeasured = useRef(false);
+  // Friend requests, meetings whose next move is this user's, and unread
+  // messages all resolve in the same place: the Inbox tab. The counts are read
+  // defensively because the first paint can come from a snapshot written by an
+  // older build that had no counts in it.
+  const waiting = mobileData.data
+    ? badgeCount(mobileData.data.pendingConnectionCount) +
+      badgeCount(mobileData.data.actionableMeetingCount) +
+      mobileData.data.conversationSummaries.reduce(
+        (total, conversation) => total + conversation.unreadCount,
+        0,
+      )
+    : 0;
   const active = tabs.find((entry) => entry.id === tab) ?? tabs[0];
   const Page = active.component;
   useEffect(() => {
@@ -93,7 +162,7 @@ function Shell() {
         import("./pages/planner"),
         import("./pages/assistant"),
         import("./pages/inbox"),
-        import("./pages/settings"),
+        import("./pages/profile"),
       ]);
     const requestIdle = window.requestIdleCallback;
     if (requestIdle) {
@@ -135,30 +204,28 @@ function Shell() {
           <span className="brand-mark">K</span>
           Kairos
         </div>
+        <ThemeButton />
+      </header>
+      {/*
+        Sync is silent by design: a permanently visible status pill trains the
+        user to watch a background process they cannot influence. Only a sync
+        that has something to say surfaces, and when it does it doubles as the
+        manual retry.
+      */}
+      {mobileData.error && mobileData.data && (
         <button
           type="button"
-          className="sync-state"
+          className="notice full"
           onClick={() => void mobileData.refresh()}
-          aria-label="Refresh Kairos"
+          disabled={mobileData.state === "refreshing"}
+          // aria-live rather than role="status": the notice has to keep
+          // announcing itself when it appears without giving up the button role
+          // that tells the user it is the retry control.
+          aria-live="polite"
         >
-          <span
-            className={
-              "sync-dot " + (mobileData.state === "offline" ? "offline" : "")
-            }
-          />
-          {mobileData.state === "refreshing"
-            ? "Syncing"
-            : mobileData.state === "offline"
-              ? "On this phone"
-              : mobileData.state === "review"
-                ? "Needs review"
-                : "Current"}
+          Showing trusted local data. {mobileData.error}{" "}
+          {mobileData.state === "refreshing" ? "Retrying…" : "Tap to retry."}
         </button>
-      </header>
-      {mobileData.error && mobileData.data && (
-        <div className="notice" role="status">
-          Showing trusted local data. {mobileData.error}
-        </div>
       )}
       <Suspense fallback={<LoadingPage />}>
         {mobileData.data ? (
@@ -182,8 +249,13 @@ function Shell() {
             aria-current={tab === entry.id ? "page" : undefined}
             onClick={(event) => navigate(entry.id, event.timeStamp)}
           >
-            <span className="nav-icon">{entry.icon}</span>
+            <entry.icon size={22} strokeWidth={2} aria-hidden />
             {entry.label}
+            {entry.id === "inbox" && waiting > 0 && (
+              <span className="count-badge" aria-label={waiting + " waiting"}>
+                {waiting}
+              </span>
+            )}
           </button>
         ))}
       </nav>
@@ -193,6 +265,10 @@ function Shell() {
 
 function SessionGate() {
   const auth = useAuth();
+  const settled = !auth.loading;
+  useEffect(() => {
+    if (settled) hideSplashScreen();
+  }, [settled]);
   if (auth.loading)
     return (
       <main className="auth" aria-label="Restoring secure session">

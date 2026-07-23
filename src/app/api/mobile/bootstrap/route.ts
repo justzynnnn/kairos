@@ -7,6 +7,15 @@ import { authenticateBearerRequest } from "@/lib/supabase/request";
 
 export const runtime = "nodejs";
 
+// A meeting is actionable when the next move belongs to this participant: the
+// organizer sends a draft and gives the final confirmation, the recipient
+// answers the options they were sent.
+function waitingOnActor(state: string, role: string | undefined) {
+  if (role === "organizer")
+    return state === "draft" || state === "awaiting_sender_confirmation";
+  return role === "recipient" && state === "options_sent";
+}
+
 export async function GET(request: Request) {
   try {
     const { user } = await authenticateBearerRequest(request);
@@ -51,6 +60,7 @@ export async function GET(request: Request) {
       preferenceResult,
       membershipResult,
       meetingMembershipResult,
+      pendingConnectionResult,
     ] = await Promise.all([
       admin
         .from("profiles")
@@ -74,8 +84,13 @@ export async function GET(request: Request) {
         .is("removed_at", null),
       admin
         .from("meeting_participants")
-        .select("meeting_id")
+        .select("meeting_id,role")
         .eq("user_id", user.id),
+      admin
+        .from("connections")
+        .select("id")
+        .eq("addressee_id", user.id)
+        .eq("status", "pending"),
     ]);
     if (
       profileResult.error ||
@@ -89,12 +104,52 @@ export async function GET(request: Request) {
     const profile = profileResult.data;
     const calendarRows = calendarResult.data ?? [];
     const calendarIds = calendarRows.map((row) => row.id);
-    const { data: dependencies } = calendarIds.length
-      ? await admin
-          .from("calendar_item_dependencies")
-          .select("item_id,depends_on_id")
-          .in("item_id", calendarIds)
-      : { data: [] };
+    const memberships = membershipResult.data ?? [];
+    const conversationIds = memberships.map((row) => row.conversation_id);
+    const meetingMemberships = meetingMembershipResult.data ?? [];
+    const meetingIds = meetingMemberships.map((row) => row.meeting_id);
+    const roleByMeeting = new Map(
+      meetingMemberships.map((row) => [row.meeting_id, row.role]),
+    );
+
+    // Everything here depends only on ids from the first wave, so it travels in
+    // one round trip. Only the friend-profile lookup below has to wait, since
+    // it needs the conversation members this wave returns.
+    const [{ data: dependencies }, otherMembers, messages, { data: meetings }] =
+      await Promise.all([
+        calendarIds.length
+          ? admin
+              .from("calendar_item_dependencies")
+              .select("item_id,depends_on_id")
+              .in("item_id", calendarIds)
+          : { data: [] },
+        conversationIds.length
+          ? admin
+              .from("direct_conversation_members")
+              .select("conversation_id,user_id")
+              .in("conversation_id", conversationIds)
+              .neq("user_id", user.id)
+              .is("removed_at", null)
+          : { data: [] },
+        conversationIds.length
+          ? admin
+              .from("conversation_messages")
+              .select("conversation_id,sender_id,body,created_at,private_to")
+              .in("conversation_id", conversationIds)
+              .or(`private_to.is.null,private_to.eq.${user.id}`)
+              .order("created_at", { ascending: false })
+              .limit(500)
+          : { data: [] },
+        meetingIds.length
+          ? admin
+              .from("meeting_requests")
+              .select("id,title,state,updated_at")
+              .in("id", meetingIds)
+              .order("updated_at", { ascending: false })
+              .limit(100)
+          : { data: [] },
+      ]);
+
     const dependencyMap = new Map<string, string[]>();
     for (const dependency of dependencies ?? []) {
       const values = dependencyMap.get(dependency.item_id) ?? [];
@@ -102,25 +157,6 @@ export async function GET(request: Request) {
       dependencyMap.set(dependency.item_id, values);
     }
 
-    const memberships = membershipResult.data ?? [];
-    const conversationIds = memberships.map((row) => row.conversation_id);
-    const [otherMembers, messages] = conversationIds.length
-      ? await Promise.all([
-          admin
-            .from("direct_conversation_members")
-            .select("conversation_id,user_id")
-            .in("conversation_id", conversationIds)
-            .neq("user_id", user.id)
-            .is("removed_at", null),
-          admin
-            .from("conversation_messages")
-            .select("conversation_id,sender_id,body,created_at,private_to")
-            .in("conversation_id", conversationIds)
-            .or(`private_to.is.null,private_to.eq.${user.id}`)
-            .order("created_at", { ascending: false })
-            .limit(500),
-        ])
-      : [{ data: [] }, { data: [] }];
     const friendIds = (otherMembers.data ?? []).map((row) => row.user_id);
     const { data: friends } = friendIds.length
       ? await admin.from("profiles").select("id,full_name").in("id", friendIds)
@@ -150,18 +186,6 @@ export async function GET(request: Request) {
       values.push(message);
       messagesByConversation.set(message.conversation_id, values);
     }
-
-    const meetingIds = (meetingMembershipResult.data ?? []).map(
-      (row) => row.meeting_id,
-    );
-    const { data: meetings } = meetingIds.length
-      ? await admin
-          .from("meeting_requests")
-          .select("id,title,state,updated_at")
-          .in("id", meetingIds)
-          .order("updated_at", { ascending: false })
-          .limit(100)
-      : { data: [] };
 
     const cursor = new Date().toISOString();
     const payload: MobileBootstrap = {
@@ -218,6 +242,10 @@ export async function GET(request: Request) {
         state: meeting.state,
         updatedAt: meeting.updated_at,
       })),
+      pendingConnectionCount: (pendingConnectionResult.data ?? []).length,
+      actionableMeetingCount: (meetings ?? []).filter((meeting) =>
+        waitingOnActor(meeting.state, roleByMeeting.get(meeting.id)),
+      ).length,
     };
     return NextResponse.json(payload, {
       headers: { "Cache-Control": "private, no-store" },

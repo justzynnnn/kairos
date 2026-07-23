@@ -105,12 +105,18 @@ describe("account creation is the only way in", () => {
 
 describe("contact sync", () => {
   it("caps a sync and never persists the address book", () => {
-    const route = fs.readFileSync(
+    // The cap lives in the schema module both the web and mobile contact
+    // routes parse with, so neither client can exceed it.
+    const schema = fs.readFileSync("src/lib/profile/people-schema.ts", "utf8");
+    expect(schema).toContain("max(200)");
+    for (const path of [
       "src/app/api/profile/contacts/route.ts",
-      "utf8",
-    );
-    expect(route).toContain("max(200)");
-    expect(route).not.toMatch(/insert|upsert|storage/i);
+      "src/app/api/mobile/people/match/route.ts",
+    ]) {
+      const route = fs.readFileSync(path, "utf8");
+      expect(route).toContain("contactMatchSchema");
+      expect(route).not.toMatch(/insert|upsert|storage/i);
+    }
   });
   it("matches contacts without returning anyone who is not already a user", () => {
     const server = fs.readFileSync("src/lib/profile/server.ts", "utf8");

@@ -1,10 +1,7 @@
 "use client";
 
 import { Capacitor, registerPlugin } from "@capacitor/core";
-import {
-  scheduleOperationSchema,
-  type ScheduleOperation,
-} from "@/lib/mobile/contracts";
+import type { ScheduleOperation } from "@/lib/mobile/contracts-types";
 
 type SecureStorePlugin = {
   readSnapshot(options: { key: string }): Promise<{ payload: string | null }>;
@@ -42,6 +39,13 @@ const plugin = registerPlugin<SecureStorePlugin>("KairosSecureStore");
 const native = () =>
   Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios";
 
+// Loaded on demand so the ~68KB validation bundle stays off the launch path.
+// Every caller below runs in response to a user action or a background sync,
+// never during the first paint.
+async function operationSchema() {
+  return (await import("@/lib/mobile/contracts")).scheduleOperationSchema;
+}
+
 function fallbackKey(key: string) {
   return "kairos.mobile." + key;
 }
@@ -64,7 +68,7 @@ export async function writeLocalSnapshot(key: string, value: unknown) {
 }
 
 export async function queueLocalOperation(operation: ScheduleOperation) {
-  const value = scheduleOperationSchema.parse(operation);
+  const value = (await operationSchema()).parse(operation);
   if (native())
     await plugin.queueOperation({
       id: value.clientOperationId,
@@ -89,11 +93,12 @@ export async function pendingLocalOperations(): Promise<
   }>
 > {
   if (native()) {
-    const { operations } = await plugin.pendingOperations();
+    const [{ operations }, schema] = await Promise.all([
+      plugin.pendingOperations(),
+      operationSchema(),
+    ]);
     return operations.flatMap((entry) => {
-      const parsed = scheduleOperationSchema.safeParse(
-        JSON.parse(entry.payload),
-      );
+      const parsed = schema.safeParse(JSON.parse(entry.payload));
       return parsed.success
         ? [{ operation: parsed.data, status: entry.status }]
         : [];
