@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { ArrowRight, Check, LoaderCircle } from "lucide-react";
 import { SettingsFeedback } from "@/components/settings/settings-feedback";
+import { MotionIllustration } from "@/components/motion-illustration";
 import { useProfileSettings } from "@/components/settings/use-profile-settings";
 import type { ScheduleVisibility } from "@/lib/profile/types";
 
@@ -178,6 +179,7 @@ export function OnboardingWorkspace() {
 
       {step === 3 && (
         <div className="onboarding-step">
+          <MotionIllustration />
           <p className="eyebrow">Step 3 of 3</p>
           <h2 className="section-title">Plan your first item</h2>
           <p className="supporting-text">

@@ -209,7 +209,9 @@ export function RepairWorkspace({
       {busy && !proposal && (
         <div
           role="status"
-          className="flex items-center gap-2 border-t border-[var(--outline)] p-4 text-sm text-[var(--muted)]"
+          aria-live="polite"
+          aria-atomic="true"
+          className="motion-status-enter flex items-center gap-2 border-t border-[var(--outline)] p-4 text-sm text-[var(--muted)]"
         >
           <LoaderCircle className="size-4 animate-spin" />
           Checking seven days in 15-minute increments…
@@ -227,14 +229,17 @@ export function RepairWorkspace({
       {success && (
         <div
           role="status"
-          className="flex items-start gap-2 border-t border-[#8bd8c2] bg-[#d5f6eb] p-4 text-sm text-[#075e49]"
+          className="motion-success-enter flex items-start gap-2 border-t border-[#8bd8c2] bg-[#d5f6eb] p-4 text-sm text-[#075e49]"
         >
           <Check className="mt-0.5 size-4 shrink-0" />
           {success}
         </div>
       )}
       {proposal && (
-        <div className="border-t border-[var(--outline)] bg-[var(--surface-low)] p-4 sm:p-5">
+        <div className="motion-card-enter border-t border-[var(--outline)] bg-[var(--surface-low)] p-4 sm:p-5">
+          <p className="mb-3 text-sm font-medium text-[var(--cyan-deep)]">
+            Repair choices are ready for review. Nothing has changed yet.
+          </p>
           <div
             className="flex flex-wrap gap-2"
             role="tablist"

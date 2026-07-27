@@ -273,6 +273,7 @@ export function JourneyMode({ item }: { item: CalendarItem }) {
         },
         { enableHighAccuracy: true, maximumAge: 30_000, timeout: 15_000 },
       );
+      setNotice("Live Journey is active while this tab stays open.");
     } catch (reason) {
       await endSession();
       setWatching(false);
@@ -567,7 +568,7 @@ export function JourneyMode({ item }: { item: CalendarItem }) {
       {notice && (
         <p
           role="status"
-          className="mt-3 flex items-center gap-1 text-xs font-semibold text-[var(--success)]"
+          className="motion-success-enter mt-3 flex items-center gap-1 text-xs font-semibold text-[var(--success)]"
         >
           <Check className="size-4" />
           {notice}

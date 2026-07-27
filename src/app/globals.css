@@ -19,6 +19,10 @@
   --gold-soft: #fff8d8;
   --error: #ba1a1a;
   --success: #057a55;
+  --motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  --motion-quick: 120ms;
+  --motion-standard: 240ms;
+  --motion-slow: 360ms;
   --shadow-card: 0 2px 10px rgba(37, 59, 110, 0.06);
   --shadow-card-hover: 0 8px 24px rgba(37, 59, 110, 0.12);
   --shadow-raised: 0 10px 30px rgba(10, 36, 87, 0.14);
@@ -75,12 +79,12 @@ a,
 [role="button"],
 summary {
   transition:
-    background-color 0.15s ease,
-    border-color 0.15s ease,
-    color 0.15s ease,
-    box-shadow 0.15s ease,
-    transform 0.12s ease,
-    opacity 0.15s ease;
+    background-color var(--motion-quick) var(--motion-ease),
+    border-color var(--motion-quick) var(--motion-ease),
+    color var(--motion-quick) var(--motion-ease),
+    box-shadow var(--motion-standard) var(--motion-ease),
+    transform var(--motion-quick) var(--motion-ease),
+    opacity var(--motion-quick) var(--motion-ease);
 }
 button:not(:disabled):active,
 [role="button"]:not([aria-disabled="true"]):active {
@@ -452,6 +456,72 @@ a {
 .empty-state p {
   font-size: 0.875rem;
   max-width: 26rem;
+}
+
+.motion-illustration {
+  height: 8.5rem;
+  margin-bottom: 0.5rem;
+  pointer-events: none;
+  width: 8.5rem;
+}
+.motion-card-enter {
+  animation: motion-card-enter var(--motion-standard) var(--motion-ease) both;
+}
+.motion-status-enter {
+  animation: motion-status-enter var(--motion-standard) var(--motion-ease) both;
+}
+.motion-success-enter {
+  animation: motion-success-enter var(--motion-standard) var(--motion-ease) both;
+}
+@keyframes motion-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes motion-status-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-0.4rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes motion-success-enter {
+  from {
+    opacity: 0;
+    transform: translateY(0.4rem) scale(0.98);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(0) scale(1.01);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+  .motion-illustration {
+    display: none;
+  }
 }
 .inline-error,
 .inline-success {

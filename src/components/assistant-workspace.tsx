@@ -292,6 +292,17 @@ export function AssistantWorkspace({
             Apple Intelligence are available in the iOS app.
           </p>
         )}
+        {busy && (
+          <p
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            className="motion-status-enter mt-4 flex items-center gap-2 text-sm text-[var(--muted)]"
+          >
+            <LoaderCircle className="size-4 animate-spin" />
+            Preparing a proposal. Your calendar has not changed.
+          </p>
+        )}
       </section>
       {error && (
         <div
@@ -305,7 +316,7 @@ export function AssistantWorkspace({
       {success && (
         <div
           role="status"
-          className="flex gap-3 rounded-xl bg-[#d9fbe8] p-4 text-sm text-[var(--success)]"
+          className="motion-success-enter flex gap-3 rounded-xl bg-[#d9fbe8] p-4 text-sm text-[var(--success)]"
         >
           <Check className="size-5" />
           {success}
@@ -419,7 +430,7 @@ export function AssistantWorkspace({
         </section>
       )}
       {proposal && (
-        <section className="card overflow-hidden">
+        <section className="motion-card-enter card overflow-hidden">
           <header className="border-b bg-[var(--surface-low)] p-5">
             <div className="flex flex-wrap justify-between gap-3">
               <div>
@@ -441,6 +452,9 @@ export function AssistantWorkspace({
                 {proposal.providerNotice}
               </p>
             )}
+            <p className="mt-3 text-sm font-medium text-[var(--cyan-deep)]">
+              Proposal ready for review. Your calendar has not changed.
+            </p>
           </header>
           <div className="grid gap-4 p-5">
             {proposal.items.map((item, i) => (
