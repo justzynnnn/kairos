@@ -51,7 +51,7 @@ export async function getNativeCapabilities(): Promise<NativeCapabilities> {
     return {
       foundationModel: {
         state: "unsupported",
-        reason: "On-device intelligence is available in the Kairos iOS app.",
+        reason: "On-device intelligence is available in the Mori iOS app.",
       },
       speech: {
         state: "unavailable",

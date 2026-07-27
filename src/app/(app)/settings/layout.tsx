@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { SettingsNav } from "@/components/settings/settings-nav";
 
 export const metadata: Metadata = {
-  title: { default: "Settings · Kairos", template: "%s · Kairos" },
+  title: { default: "Settings · Mori", template: "%s · Mori" },
 };
 
 export default function SettingsLayout({

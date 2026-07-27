@@ -44,7 +44,7 @@ export default function Planner() {
           aria-labelledby="review-heading"
         >
           <p className="eyebrow">Sync review</p>
-          <h2 id="review-heading">Your phone and Kairos disagree</h2>
+          <h2 id="review-heading">Your phone and Mori disagree</h2>
           <p className="supporting">
             Nothing was overwritten. Discard a local change to keep the newer
             server version, or recreate it after reviewing today.

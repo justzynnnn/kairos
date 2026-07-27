@@ -53,7 +53,7 @@ const accountSheets: Record<
   },
   hours: {
     title: "Active hours",
-    description: "Kairos only places flexible work inside this window.",
+    description: "Mori only places flexible work inside this window.",
   },
   travelBuffer: {
     title: "Travel buffer",
@@ -78,8 +78,8 @@ const visibilityOptions: Array<{
   },
   {
     value: "public",
-    label: "Kairos users",
-    description: "Any signed-in Kairos user sees sanitized free/busy.",
+    label: "Mori users",
+    description: "Any signed-in Mori user sees sanitized free/busy.",
   },
 ];
 
@@ -378,7 +378,7 @@ export default function Profile() {
     <main className="page">
       <header>
         <p className="eyebrow">Signed in</p>
-        <h1>Profile</h1>
+        <h1>Settings</h1>
         <p className="supporting">{data.viewer.email}</p>
       </header>
 
@@ -760,7 +760,7 @@ export default function Profile() {
       {preferenceDraft && (
         <Sheet
           title={draft ? draft.category : "New preference"}
-          description="Kairos applies these defaults when it schedules this category."
+          description="Mori applies these defaults when it schedules this category."
           onDismiss={dismissSheet}
         >
           <form className="page" onSubmit={submitPreference}>

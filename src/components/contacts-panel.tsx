@@ -184,7 +184,7 @@ export function ContactsPanel({
             Find people
           </h2>
           <p className="supporting-text">
-            Search by name, username, or email. Kairos only enables messaging
+            Search by name, username, or email. Mori only enables messaging
             after a friend request is accepted.
           </p>
         </div>
@@ -259,7 +259,7 @@ export function ContactsPanel({
                 </article>
               ))
             ) : (
-              <p className="empty-row">No Kairos users matched that search.</p>
+              <p className="empty-row">No Mori users matched that search.</p>
             )}
           </div>
         )}

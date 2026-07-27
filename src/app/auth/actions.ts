@@ -106,5 +106,5 @@ export async function resetPassword(
     return {
       error: "This reset link is invalid or expired. Request a new one.",
     };
-  return { message: "Password updated. You can return to Kairos." };
+  return { message: "Password updated. You can return to Mori." };
 }

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { usePathname } from "next/navigation";
-import { Bot, CalendarDays, Home, Inbox, Settings } from "lucide-react";
+import { CalendarDays, Home, Inbox, Settings, Waves } from "lucide-react";
 import { signOut } from "@/app/auth/actions";
 import { Brand } from "@/components/brand";
 import { DayStartObserver } from "@/components/day-start-observer";
@@ -17,7 +17,7 @@ import type { Viewer } from "@/lib/types";
 const navigation = [
   { label: "Home", href: "/", icon: Home },
   { label: "Planner", href: "/planner", icon: CalendarDays },
-  { label: "Kairos", href: "/assistant", icon: Bot },
+  { label: "Mori", href: "/assistant", icon: Waves },
   { label: "Inbox", href: "/inbox", icon: Inbox },
   { label: "Settings", href: "/settings/account", icon: Settings },
 ] as const;

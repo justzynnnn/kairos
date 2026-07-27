@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useState } from "react";
 import { RefreshCw, Wifi } from "lucide-react";
+import { MoriMascot } from "@/components/mori-mascot";
 
 export function OfflineState() {
   const [online, setOnline] = useState(false);
@@ -19,14 +19,7 @@ export function OfflineState() {
   return (
     <main className="grid min-h-screen place-items-center p-6 text-center">
       <div className="max-w-md">
-        <Image
-          src="/kairos-mascot.png"
-          alt=""
-          width={120}
-          height={120}
-          className="mx-auto size-28 object-contain"
-          priority
-        />
+        <MoriMascot state="sleeping" size="medium" alt="" className="mx-auto" />
         <p
           className={`mx-auto mt-5 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold ${online ? "bg-[#d5f6eb] text-[#075e49]" : "bg-[var(--surface-high)] text-[var(--muted)]"}`}
         >
@@ -39,7 +32,7 @@ export function OfflineState() {
         <p className="mt-3 text-[var(--muted)]">
           {online
             ? "Retry to return to your private schedule."
-            : "Kairos will not show stale private schedule data. Reconnect, then try again."}
+            : "Mori will not show stale private schedule data. Reconnect, then try again."}
         </p>
         <button
           type="button"

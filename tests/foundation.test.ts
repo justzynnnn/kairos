@@ -200,7 +200,7 @@ describe("Phase 5 permission and activity boundaries", () => {
   });
   it("refreshes the PWA cache and enables manipulation-safe taps", () => {
     expect(fs.readFileSync("public/sw.js", "utf8")).toContain(
-      'CACHE="kairos-v6"',
+      'CACHE="mori-v1"',
     );
     expect(fs.readFileSync("src/app/globals.css", "utf8")).toMatch(
       /touch-action:\s*manipulation/,
@@ -241,6 +241,7 @@ describe("SQL Editor quick hosting", () => {
       .filter((entry) => entry.endsWith(".sql")))
       expect(schema).toContain(file);
     expect(schema).toContain("kairos_installation");
+    expect(schema).not.toMatch(/^[-+](?:--|\s*(?:alter|create|insert|update|delete)\b)/m);
   });
   it("seeds and removes only marked demo records for the authenticated user", () => {
     const sql = fs.readFileSync(demoMigration, "utf8");

@@ -146,7 +146,7 @@ export function MeetingInbox({
       setError(
         reason instanceof Error
           ? reason.message
-          : "Kairos could not coordinate that meeting.",
+          : "Mori could not coordinate that meeting.",
       );
     } finally {
       setBusy(false);
@@ -175,7 +175,7 @@ export function MeetingInbox({
       if (!response.ok) throw new Error(data.error);
       setNotice(
         action === "confirm"
-          ? "Meeting confirmed on both Kairos calendars."
+          ? "Meeting confirmed on both Mori calendars."
           : "Meeting request updated.",
       );
       await load();
@@ -201,7 +201,7 @@ export function MeetingInbox({
         participant.userId && participant.userId !== meeting.actorId,
     );
     if (!other?.userId) {
-      setError("Guest meetings use the booking link instead of a Kairos chat.");
+      setError("Guest meetings use the booking link instead of a Mori chat.");
       return;
     }
     setBusy(true);

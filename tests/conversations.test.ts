@@ -92,7 +92,7 @@ describe("Phase 4 direct conversations", () => {
     );
     expect(reminder).toMatchObject({
       senderId: null,
-      senderName: "Kairos",
+      senderName: "Mori",
       senderKind: "system",
       private: true,
       isMine: false,

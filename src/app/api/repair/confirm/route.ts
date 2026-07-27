@@ -96,7 +96,7 @@ export async function POST(request: Request) {
       {
         error: stale
           ? "Your schedule changed. Generate a fresh repair before confirming."
-          : "Kairos could not apply this repair safely.",
+          : "Mori could not apply this repair safely.",
       },
       { status: stale ? 409 : 422 },
     );

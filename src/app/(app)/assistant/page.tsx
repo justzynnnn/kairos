@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import { AssistantWorkspace } from "@/components/assistant-workspace";
+import { MoriMascot } from "@/components/mori-mascot";
 import { getViewer } from "@/lib/data";
 import { isGeminiConfigured } from "@/lib/scheduling/gemini";
 
@@ -15,19 +15,17 @@ export default async function AssistantPage({
   return (
     <div className="mx-auto max-w-[720px] space-y-6">
       <header className="flex items-center gap-4">
-        <Image
-          src="/kairos-mascot.png"
-          alt=""
-          width={96}
-          height={96}
-          className="size-20 shrink-0 rounded-full object-cover"
-          priority
+        <MoriMascot
+          state="planning"
+          size="medium"
+          alt="Mori is ready to plan"
+          className="shrink-0"
         />
         <div>
           <p className="eyebrow text-[var(--cyan-deep)]">
             Conversational scheduling
           </p>
-          <h1 className="page-title mt-1">Plan with Kairos</h1>
+          <h1 className="page-title mt-1">Plan with Mori</h1>
           <p className="mt-2 text-sm text-[var(--muted)]">
             Describe the outcome. Review every assumption and change before it
             reaches your schedule.

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { OnboardingWorkspace } from "@/components/onboarding-workspace";
 
-export const metadata: Metadata = { title: "Set up Kairos" };
+export const metadata: Metadata = { title: "Set up Mori" };
 
 export default function OnboardingPage() {
   return (
@@ -9,7 +9,7 @@ export default function OnboardingPage() {
       <header className="page-header">
         <div>
           <p className="eyebrow">Three deliberate choices</p>
-          <h1 className="page-title">Set up Kairos</h1>
+          <h1 className="page-title">Set up Mori</h1>
           <p className="page-description">
             Define your day, protect your availability, then review your first
             schedule item.

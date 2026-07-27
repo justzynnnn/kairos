@@ -127,7 +127,7 @@ export function HomeDashboard({
               <div className="empty-state min-h-48">
                 <ShieldCheck className="size-7" />
                 <h2>No remaining items today</h2>
-                <p>Use the open time deliberately—or ask Kairos to plan it.</p>
+                <p>Use the open time deliberately—or ask Mori to plan it.</p>
               </div>
             )}
           </div>

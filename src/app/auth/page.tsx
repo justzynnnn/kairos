@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { AuthForm } from "@/components/auth-form";
 import { Brand } from "@/components/brand";
+import { MoriMascot } from "@/components/mori-mascot";
 import { isSupabaseConfigured } from "@/lib/env";
 
 export const metadata: Metadata = { title: "Sign in" };
@@ -14,14 +14,7 @@ export default function AuthPage() {
       <section className="auth-story">
         <Brand />
         <div>
-          <Image
-            src="/kairos-mascot.png"
-            alt="Kairos, your temporal guardian"
-            width={180}
-            height={180}
-            className="size-36 object-contain"
-            priority
-          />
+          <MoriMascot state="wave" size="large" alt="Mori, your planning companion" />
           <p className="eyebrow mt-5 text-[var(--cyan-deep)]">
             Your time. Your rules.
           </p>

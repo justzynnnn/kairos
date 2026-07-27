@@ -11,15 +11,16 @@ describe("motion foundation", () => {
     expect(css).toContain(".motion-card-enter");
   });
 
-  it("ships a local, decorative Lottie illustration", () => {
+  it("ships a local, decorative Mori illustration", () => {
     const motion = fs.readFileSync(
       "src/components/motion-illustration.tsx",
       "utf8",
     );
-    const asset = fs.readFileSync("public/motion/kairos-welcome.json", "utf8");
-    expect(motion).toContain("@lottiefiles/dotlottie-react");
+    const assets = fs.readFileSync("src/config/mori-assets.ts", "utf8");
+    expect(motion).toContain("MoriMascot");
     expect(motion).toContain('aria-hidden="true"');
-    expect(asset).toContain('"nm": "Kairos welcome"');
+    expect(assets).toContain('"onboarding"');
+    expect(assets).toContain('"/mori/mori-idle.png"');
   });
 
   it("keeps AI and repair animation honest about pending review", () => {

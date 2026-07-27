@@ -120,7 +120,7 @@ export function AssistantWorkspace({
       }
     } catch (e) {
       setError(
-        e instanceof Error ? e.message : "Kairos could not interpret that.",
+        e instanceof Error ? e.message : "Mori could not interpret that.",
       );
     } finally {
       setBusy(false);
@@ -225,7 +225,7 @@ export function AssistantWorkspace({
           What needs to happen?
         </label>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Describe the outcome. Kairos will show assumptions and ask when a
+          Describe the outcome. Mori will show assumptions and ask when a
           detail matters.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -250,7 +250,7 @@ export function AssistantWorkspace({
           maxLength={2000}
           value={command}
           onChange={(e) => setCommand(e.target.value)}
-          placeholder="Describe what you want Kairos to plan"
+          placeholder="Describe what you want Mori to plan"
           className="mt-3 w-full rounded-xl border border-[var(--outline)] p-4 leading-6"
         />
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
@@ -665,7 +665,7 @@ export function AssistantWorkspace({
       <ConfirmDialog
         open={cloudConsentOpen}
         title="Send a filtered request to Gemini?"
-        description="Kairos will send this command, relevant free/busy times, active hours, and minimum preferences. Unrelated titles become “Busy.” Audio, locations, messages, contacts, files, and the rest of your schedule are never sent."
+        description="Mori will send this command, relevant free/busy times, active hours, and minimum preferences. Unrelated titles become “Busy.” Audio, locations, messages, contacts, files, and the rest of your schedule are never sent."
         confirmLabel="Send filtered request"
         busy={busy}
         onCancel={() => setCloudConsentOpen(false)}

@@ -624,7 +624,7 @@ export function buildRepairSolution(
     return {
       status: "impossible",
       reason:
-        "A protected item was affected, so Kairos left it unchanged and needs your approval before resolving the disruption.",
+        "A protected item was affected, so Mori left it unchanged and needs your approval before resolving the disruption.",
       compromises: [
         "Review protected changes explicitly.",
         "Adjust the protected item's permissions.",

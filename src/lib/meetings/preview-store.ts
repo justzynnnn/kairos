@@ -184,7 +184,7 @@ export function createPreviewMeeting(command: string, actor = demoViewer) {
               ? {
                   channel: "in_app",
                   status: "delivered",
-                  label: "Delivered in Kairos",
+                  label: "Delivered in Mori",
                 }
               : {
                   channel: "email",
@@ -220,7 +220,7 @@ function addEvent(
       userId,
       type: "event" as const,
       title: meeting.title,
-      description: "Confirmed through Kairos meeting coordination",
+      description: "Confirmed through Mori meeting coordination",
       startAt: option.startAt,
       endAt: option.endAt,
       dueAt: null,
@@ -270,7 +270,7 @@ export function actOnPreviewMeeting(
     meeting.deliveries.push({
       channel: "in_app",
       status: "delivered",
-      label: "Delivered in Kairos",
+      label: "Delivered in Mori",
     });
   } else if (
     action === "accept" &&

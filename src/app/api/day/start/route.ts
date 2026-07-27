@@ -51,7 +51,7 @@ export async function POST() {
       return NextResponse.json(result);
     }
     request.travelBufferMinutes = viewer.travelBufferMinutes;
-    const reason = `Your day started ${request.delayMinutes} minutes after an adjustable task began. Kairos changed only operations that task permissions allow.`;
+    const reason = `Your day started ${request.delayMinutes} minutes after an adjustable task began. Mori changed only operations that task permissions allow.`;
     const sourceKey = `wake:${day}`,
       incident = supabase
         ? await applyHostedAutomaticRepair(
@@ -77,7 +77,7 @@ export async function POST() {
       {
         error: userMessage(
           error,
-          "Kairos could not check the start of your day.",
+          "Mori could not check the start of your day.",
         ),
       },
       { status: 500 },

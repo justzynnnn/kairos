@@ -2,7 +2,7 @@
 export default function ErrorPage({ reset }: { reset: () => void }) {
   return (
     <section className="card p-8 text-center">
-      <h1 className="page-title">Kairos couldn&apos;t load this view</h1>
+      <h1 className="page-title">Mori couldn&apos;t load this view</h1>
       <p className="mt-3 text-[var(--muted)]">Your data was not changed.</p>
       <button
         onClick={reset}

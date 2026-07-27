@@ -1,13 +1,13 @@
 import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Kairos — Your temporal guardian",
-    short_name: "Kairos",
-    description: "A conversational secretary that protects your time.",
+    name: "Mori — Your planning companion",
+    short_name: "Mori",
+    description: "A calm planning companion that protects your time.",
     start_url: "/",
     display: "standalone",
-    background_color: "#f9f9f9",
-    theme_color: "#0a2457",
+    background_color: "#f4f6fa",
+    theme_color: "#0b2b63",
     orientation: "portrait-primary",
     icons: [
       { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },

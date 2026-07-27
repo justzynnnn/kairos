@@ -226,7 +226,7 @@ export async function GET(request: Request) {
         const friendId = memberByConversation.get(id);
         return {
           id,
-          name: names.get(friendId ?? "") ?? "Kairos friend",
+          name: names.get(friendId ?? "") ?? "Mori friend",
           lastMessage: last?.body ?? null,
           updatedAt: last?.created_at ?? cursor,
           unreadCount: values.filter(
@@ -252,7 +252,7 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     return NextResponse.json(
-      { error: userMessage(error, "Kairos could not refresh this phone.") },
+      { error: userMessage(error, "Mori could not refresh this phone.") },
       { status: errorStatus(error, 500) },
     );
   }

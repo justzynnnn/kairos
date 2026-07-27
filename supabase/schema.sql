@@ -801,7 +801,7 @@ grant execute on function public.set_demo_mode(boolean)to authenticated;
 -- ============================================================
 -- 202607180009_friend_permissions_messaging.sql
 -- ============================================================
-+-- Repair accepted-friend defaults for messaging and meeting coordination.
+-- Repair accepted-friend defaults for messaging and meeting coordination.
 -- Existing explicit permission rows are preserved; missing rows default to free/busy.
 
 insert into public.schedule_permissions(owner_id,grantee_id,scope,categories)

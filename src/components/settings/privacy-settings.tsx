@@ -25,9 +25,9 @@ const options: Array<{
   },
   {
     value: "public",
-    label: "Kairos users",
+    label: "Mori users",
     description:
-      "Any signed-in Kairos user can inspect sanitized free/busy intervals.",
+      "Any signed-in Mori user can inspect sanitized free/busy intervals.",
     icon: Globe2,
   },
 ];
@@ -60,7 +60,7 @@ export function PrivacySettings() {
               Schedule visibility
             </h2>
             <p className="supporting-text">
-              This is one global rule. Kairos never shares titles, descriptions,
+              This is one global rule. Mori never shares titles, descriptions,
               categories, locations, activity, files, coordinates, or
               preferences.
             </p>
@@ -95,7 +95,7 @@ export function PrivacySettings() {
           <LockKeyhole className="size-5" />
           <p>
             Anonymous visitors receive no availability. Public means signed-in
-            Kairos users—not the open internet.
+            Mori users—not the open internet.
           </p>
         </div>
       </section>

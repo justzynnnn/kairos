@@ -94,7 +94,7 @@ export function AccountSettings({
               Timezone and active hours
             </h2>
             <p className="supporting-text">
-              Kairos uses these values for every schedule conversion and
+              Mori uses these values for every schedule conversion and
               recommendation.
             </p>
           </div>

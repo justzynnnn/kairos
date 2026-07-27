@@ -273,7 +273,7 @@ export default function Home() {
             <EmptyState
               icon={CalendarRange}
               title="No remaining items today"
-              hint="Capture something above and Kairos will place it here."
+              hint="Capture something above and Mori will place it here."
               actionLabel="Capture something"
               onAction={focusCapture}
             />

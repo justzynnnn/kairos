@@ -165,7 +165,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(
     mobileConfig.ready
       ? null
-      : "This build is missing its Kairos and Supabase configuration.",
+      : "This build is missing its Mori and Supabase configuration.",
   );
   const [notice, setNotice] = useState<string | null>(null);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -355,8 +355,8 @@ export function SignIn() {
   return (
     <main className="auth">
       <div className="brand">
-        <span className="brand-mark">K</span>
-        Kairos
+        <span className="brand-mark">M</span>
+        Mori
       </div>
       <section className="auth-card">
         <div className="segmented-control" aria-label="Authentication mode">
@@ -382,7 +382,7 @@ export function SignIn() {
           </button>
         </div>
         <div>
-          <p className="eyebrow">Kairos</p>
+          <p className="eyebrow">Mori</p>
           <h1>{mode === "sign-in" ? "Welcome back" : "Protect your time"}</h1>
           <p className="supporting">
             {mode === "sign-in"

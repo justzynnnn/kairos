@@ -135,7 +135,7 @@ export function DayGuardian({ items }: { items: CalendarItem[] }) {
             <h2 className="font-display mt-1 text-xl font-semibold text-[var(--navy)]">
               {attention
                 ? "Your priorities need a decision"
-                : "Kairos repaired the flexible parts of your day"}
+                : "Mori repaired the flexible parts of your day"}
             </h2>
             <p className="mt-2 text-sm text-[var(--muted)]">
               {incident.reason}

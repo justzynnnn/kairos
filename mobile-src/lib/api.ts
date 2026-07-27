@@ -24,8 +24,8 @@ export async function apiRequest<T>(
     });
   } catch (reason) {
     if (controller.signal.aborted)
-      throw new Error("Kairos took too long to respond. Try again.");
-    throw new Error("Kairos could not reach the mobile server.", {
+      throw new Error("Mori took too long to respond. Try again.");
+    throw new Error("Mori could not reach the mobile server.", {
       cause: reason,
     });
   } finally {
@@ -33,17 +33,17 @@ export async function apiRequest<T>(
   }
   if (response.headers.get("x-vercel-mitigated") === "challenge")
     throw new Error(
-      "The Kairos deployment is blocking mobile requests. Disable Vercel Challenge Mode, then retry.",
+      "The Mori deployment is blocking mobile requests. Disable Vercel Challenge Mode, then retry.",
     );
   if (response.status === 404)
     throw new Error(
-      "The mobile API is not deployed yet. Deploy the current Kairos backend, then retry.",
+      "The mobile API is not deployed yet. Deploy the current Mori backend, then retry.",
     );
   const body = (await response.json().catch(() => null)) as
     | (T & { error?: string })
     | null;
   if (!response.ok && response.status !== 207)
-    throw new Error(body?.error || "Kairos could not reach the server.");
-  if (!body) throw new Error("Kairos received an empty response.");
+    throw new Error(body?.error || "Mori could not reach the server.");
+  if (!body) throw new Error("Mori received an empty response.");
   return body;
 }

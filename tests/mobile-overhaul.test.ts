@@ -105,7 +105,7 @@ describe("bundled mobile architecture", () => {
     );
     expect(auth).toContain("Create account");
     expect(auth).toContain('"/auth/v1/signup"');
-    expect(app).toContain("Kairos could not finish loading");
+    expect(app).toContain("Mori could not finish loading");
     expect(app).toContain("onRetry");
     expect(styles).toMatch(/\.field input,[\s\S]*font-size: 16px/);
     expect(styles).toContain("background-color: var(--canvas)");
@@ -191,7 +191,7 @@ describe("bundled mobile architecture", () => {
       const app = fs.readFileSync("mobile-src/app.tsx", "utf8");
       const planner = fs.readFileSync("mobile-src/pages/planner.tsx", "utf8");
       expect(app).toContain('from "./lib/icons"');
-      expect(app).toContain("<entry.icon size={22}");
+      expect(app).toContain("<entry.icon size={26}");
       expect(app).not.toMatch(/icon: "[^"]/);
       expect(app).not.toContain("sync-state");
       expect(planner).not.toContain("confirm(");
@@ -459,9 +459,9 @@ describe("appearance and naming", () => {
     expect(main).toContain("applyTheme(storedTheme())");
   });
 
-  it("names the tab Profile and keeps the old hash working", () => {
+  it("names the tab Settings and keeps the old hash working", () => {
     const app = fs.readFileSync("mobile-src/app.tsx", "utf8");
-    expect(app).toContain('{ id: "profile", label: "Profile"');
+    expect(app).toContain('{ id: "profile", label: "Settings"');
     expect(app).toContain("renamedTabs");
     expect(app).toContain('{ settings: "profile" }');
     expect(fs.existsSync("mobile-src/pages/profile.tsx")).toBe(true);

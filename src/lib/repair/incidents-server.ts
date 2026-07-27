@@ -48,7 +48,7 @@ export async function recordHostedDayStart(
     p_started_at: startedAt,
   });
   if (error)
-    throw new AppError("Kairos could not record the start of your day.");
+    throw new AppError("Mori could not record the start of your day.");
   return Boolean(data);
 }
 
@@ -153,7 +153,7 @@ export async function applyHostedAutomaticRepair(
     });
     if (error)
       throw new AppError(
-        "Kairos detected the disruption but could not record it safely.",
+        "Mori detected the disruption but could not record it safely.",
       );
     return getHostedIncident(supabase, String(data), scheduleVersion);
   }
@@ -179,7 +179,7 @@ export async function applyHostedAutomaticRepair(
     .select("id")
     .single();
   if (proposalError || !proposal)
-    throw new AppError("Kairos could not safely save the automatic repair.");
+    throw new AppError("Mori could not safely save the automatic repair.");
   const { data, error } = await supabase.rpc("apply_automatic_repair", {
     p_proposal_id: proposal.id,
     p_alternative_id: alternative.id,
@@ -193,8 +193,8 @@ export async function applyHostedAutomaticRepair(
   if (error)
     throw new AppError(
       /changed|stale|version/i.test(error.message)
-        ? "Your schedule changed while Kairos was repairing it. Reopen Home to check again."
-        : "Kairos could not safely apply the automatic repair.",
+        ? "Your schedule changed while Mori was repairing it. Reopen Home to check again."
+        : "Mori could not safely apply the automatic repair.",
     );
   const id =
     typeof data === "object" && data && "incident_id" in data

@@ -311,7 +311,7 @@ export async function getConversationById(
       senderId: message.sender_id,
       senderName:
         message.sender_kind === "system"
-          ? "Kairos"
+          ? "Mori"
           : (names.get(message.sender_id) ?? "User"),
       senderKind: message.sender_kind,
       type: message.message_type,

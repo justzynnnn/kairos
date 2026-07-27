@@ -126,7 +126,7 @@ export default function Onboarding({ onFinish }: { onFinish(): void }) {
         <section className="panel panel-pad page">
           <div>
             <p className="eyebrow">Welcome</p>
-            <h1>Kairos protects your time</h1>
+            <h1>Mori protects your time</h1>
             <p className="supporting">
               Tell it what needs to happen. It proposes, you confirm — nothing
               reaches your schedule on its own.
@@ -209,7 +209,7 @@ export default function Onboarding({ onFinish }: { onFinish(): void }) {
             <p className="eyebrow">Step 3 of 4</p>
             <h1>Dictation stays on this phone</h1>
             <p className="supporting">
-              Kairos transcribes on device and shows the words before anything
+              Mori transcribes on device and shows the words before anything
               is planned. iOS will ask for the microphone and speech recognition
               when you tap below.
             </p>
@@ -251,7 +251,7 @@ export default function Onboarding({ onFinish }: { onFinish(): void }) {
             <p className="eyebrow">Step 4 of 4</p>
             <h1>Plan your first item</h1>
             <p className="supporting">
-              Describe it naturally. Kairos shows its assumptions and any
+              Describe it naturally. Mori shows its assumptions and any
               conflict before you confirm.
             </p>
           </div>

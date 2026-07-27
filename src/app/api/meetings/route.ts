@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ meetings: await listMeetings(request) });
   } catch {
     return NextResponse.json(
-      { error: "Kairos could not load meeting requests." },
+      { error: "Mori could not load meeting requests." },
       { status: 500 },
     );
   }
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json(
       {
-        error: userMessage(error, "Kairos could not coordinate this meeting."),
+        error: userMessage(error, "Mori could not coordinate this meeting."),
       },
       { status: 422 },
     );

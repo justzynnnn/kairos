@@ -2,7 +2,7 @@ export default function Loading() {
   return (
     <div
       role="status"
-      aria-label="Loading Kairos assistant"
+      aria-label="Loading Mori assistant"
       className="mx-auto max-w-[720px] space-y-6"
     >
       <header className="flex items-center gap-4">

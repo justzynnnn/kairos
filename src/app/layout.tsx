@@ -18,16 +18,16 @@ const montserrat = localFont({
 });
 
 export const metadata: Metadata = {
-  title: { default: "Kairos", template: "%s · Kairos" },
-  description: "A conversational secretary that protects your time.",
-  applicationName: "Kairos",
-  appleWebApp: { capable: true, statusBarStyle: "default", title: "Kairos" },
+  title: { default: "Mori", template: "%s · Mori" },
+  description: "A calm planning companion that protects your time.",
+  applicationName: "Mori",
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "Mori" },
 };
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#f9f9f9",
+  themeColor: "#f4f6fa",
 };
 
 export default function RootLayout({

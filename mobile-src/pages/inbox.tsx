@@ -340,8 +340,8 @@ export default function Inbox() {
       setMatchOpen(false);
       setNotice(
         value.users.length
-          ? value.users.length + " of them already use Kairos."
-          : "None of those addresses have a Kairos account.",
+          ? value.users.length + " of them already use Mori."
+          : "None of those addresses have a Mori account.",
       );
     } catch (reason) {
       fail(reason, "Those addresses could not be matched.");
@@ -911,7 +911,7 @@ export default function Inbox() {
               <EmptyState
                 icon={Users}
                 title="No meetings yet"
-                hint="Ask Kairos to find a time with a friend."
+                hint="Ask Mori to find a time with a friend."
               />
             </section>
           )}
@@ -921,7 +921,7 @@ export default function Inbox() {
       {matchOpen && (
         <Sheet
           title="Check a list of emails"
-          description="Addresses are matched against existing accounts and discarded. Kairos never reads your contacts."
+          description="Addresses are matched against existing accounts and discarded. Mori never reads your contacts."
           onDismiss={() => setMatchOpen(false)}
         >
           <form className="page" onSubmit={match}>

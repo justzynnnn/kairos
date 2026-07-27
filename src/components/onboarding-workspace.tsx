@@ -24,7 +24,7 @@ const visibility: Array<{
 }> = [
   { value: "private", label: "Private", detail: "Only you" },
   { value: "friends", label: "Friends", detail: "Accepted friends" },
-  { value: "public", label: "Kairos users", detail: "Signed-in users" },
+  { value: "public", label: "Mori users", detail: "Signed-in users" },
 ];
 
 export function OnboardingWorkspace() {
@@ -183,7 +183,7 @@ export function OnboardingWorkspace() {
           <p className="eyebrow">Step 3 of 3</p>
           <h2 className="section-title">Plan your first item</h2>
           <p className="supporting-text">
-            Describe the outcome naturally. Kairos will show assumptions and
+            Describe the outcome naturally. Mori will show assumptions and
             conflicts before anything reaches your calendar.
           </p>
           <label className="field-label mt-5">

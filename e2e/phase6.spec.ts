@@ -69,7 +69,7 @@ test("confirmed Assistant items appear in URL-backed Planner dates", async ({
     "Add dentist appointment tomorrow at 4pm for one hour at Makati Medical Center";
   await page.goto("/");
   await page.waitForLoadState("networkidle");
-  await page.getByLabel("Ask Kairos from Home").fill(command);
+  await page.getByLabel("Ask Mori from Home").fill(command);
   await page.getByRole("button", { name: "Open in Assistant" }).click();
   await page.getByRole("button", { name: "Review proposal" }).click();
   await expect(

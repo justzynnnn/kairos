@@ -51,7 +51,7 @@ export function AutomationSettings() {
               Automation
             </h2>
             <p className="supporting-text">
-              Each switch saves immediately. Kairos asks before sending anything
+              Each switch saves immediately. Mori asks before sending anything
               to another person.
             </p>
           </div>

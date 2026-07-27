@@ -3,7 +3,8 @@
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { MoriMascot } from "@/components/mori-mascot";
 
 export function HomeAssistantComposer({
   cloudFallbackConfigured,
@@ -23,10 +24,13 @@ export function HomeAssistantComposer({
   return (
     <section className="assistant-entry">
       <div>
-        <span className="assistant-entry-icon">
-          <Sparkles className="size-5" />
-        </span>
-        <p className="font-display font-semibold">Plan with Kairos</p>
+        <MoriMascot
+          state="wave"
+          size="small"
+          alt=""
+          className="assistant-entry-mori"
+        />
+        <p className="font-display font-semibold">Plan with Mori</p>
         <p>
           Start here, then review assumptions, conflicts, and every proposed
           change in the full Assistant.
@@ -34,7 +38,7 @@ export function HomeAssistantComposer({
       </div>
       <div className="assistant-entry-field">
         <input
-          aria-label="Ask Kairos from Home"
+          aria-label="Ask Mori from Home"
           value={command}
           onChange={(event) => setCommand(event.target.value)}
           onKeyDown={(event) => {

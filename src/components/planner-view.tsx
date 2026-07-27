@@ -497,7 +497,7 @@ export function PlannerView({
                 }
                 className="btn btn-outline min-h-11 px-4 text-sm"
               >
-                Review a change with Kairos
+                Review a change with Mori
               </Link>
               {(["scheduled", "in_progress"] as string[]).includes(
                 selectedItem.status,

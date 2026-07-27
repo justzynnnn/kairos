@@ -39,7 +39,7 @@ export const getViewer = cache(async (): Promise<Viewer> => {
   return {
     id: data.user.id,
     email: data.user.email ?? "",
-    fullName: p?.full_name ?? "Kairos user",
+    fullName: p?.full_name ?? "Mori user",
     username: p?.username ?? data.user.id.slice(0, 8),
     timezone: p?.timezone ?? "Asia/Manila",
     activeStart: p?.active_start ?? "07:00",

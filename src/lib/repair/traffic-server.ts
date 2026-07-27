@@ -52,7 +52,7 @@ export async function repairTrafficDisruption(context: {
       new Date(item.startAt).getTime() < blockedUntil &&
       new Date(item.endAt).getTime() > now,
   );
-  const reason = `Traffic now predicts arrival ${journey.delayMinutes} minutes late. Kairos repaired only explicitly adjustable tasks around fixed commitments.`,
+  const reason = `Traffic now predicts arrival ${journey.delayMinutes} minutes late. Mori repaired only explicitly adjustable tasks around fixed commitments.`,
     sourceKey = `traffic:${journeySessionId}:${journey.delayMinutes}`;
   return supabase
     ? applyHostedAutomaticRepair(
@@ -109,7 +109,7 @@ export async function repairBackgroundTrafficDisruption(context: {
       new Date(item.endAt).getTime() > now,
   );
   const day = localDay(new Date(), viewer.timezone),
-    reason = `Traffic now predicts arrival ${journey.delayMinutes} minutes late. Kairos repaired only explicitly adjustable tasks around fixed commitments.`,
+    reason = `Traffic now predicts arrival ${journey.delayMinutes} minutes late. Mori repaired only explicitly adjustable tasks around fixed commitments.`,
     sourceKey = `traffic:${session.id}:${journey.delayMinutes}`,
     solution = buildRepairSolution(items, request);
   if (solution.status === "impossible") {

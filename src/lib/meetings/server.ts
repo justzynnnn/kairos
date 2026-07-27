@@ -193,7 +193,7 @@ export async function createMeeting(command: string, request: Request) {
     return {
       status: "needs_input" as const,
       question:
-        "I could not find that Kairos connection. Use Chloe or enter a guest email address.",
+        "I could not find that Mori connection. Use Chloe or enter a guest email address.",
     };
   const supabase = await createServerSupabaseClient();
   let participantCalendar = [] as Awaited<ReturnType<typeof getCalendarItems>>;
@@ -277,7 +277,7 @@ export async function createMeeting(command: string, request: Request) {
       : null,
   });
   if (error)
-    throw new AppError("Kairos could not create this meeting request safely.");
+    throw new AppError("Mori could not create this meeting request safely.");
   return {
     status: "meeting" as const,
     meeting: await realMeetingCard(

@@ -64,7 +64,7 @@ test("Demo data control and per-friend permissions are absent", async ({
   await expect(page.getByText(/What Chloe may see/)).toHaveCount(0);
   await expect(page.getByRole("radio", { name: /Private/ })).toBeVisible();
   await expect(page.getByRole("radio", { name: /Friends/ })).toBeVisible();
-  await expect(page.getByRole("radio", { name: /Kairos users/ })).toBeVisible();
+  await expect(page.getByRole("radio", { name: /Mori users/ })).toBeVisible();
 });
 
 test("remembered preferences support Save, Cancel, and confirmed deletion", async ({
@@ -131,7 +131,7 @@ test("every mobile navigation target stays in the app shell", async ({
   await page.goto("/");
   for (const [label, path] of [
     ["Planner", "/planner"],
-    ["Kairos", "/assistant"],
+    ["Mori", "/assistant"],
     ["Inbox", "/inbox"],
     ["Settings", "/settings/account"],
     ["Home", "/"],

@@ -197,7 +197,7 @@ button:disabled {
   min-height: 100dvh;
   background: var(--canvas);
   padding: max(14px, env(safe-area-inset-top)) 16px
-    calc(82px + env(safe-area-inset-bottom));
+    calc(100px + env(safe-area-inset-bottom));
 }
 .topbar {
   display: flex;
@@ -343,28 +343,31 @@ h2 {
   background: var(--warn-soft);
 }
 /*
- * The bar is translucent over --canvas rather than a solid panel colour, so the
- * strip behind the home indicator reads as the same surface as the page instead
- * of a second rectangle sitting on top of it.
+ * A floating capsule rather than an edge-to-edge strip. It sits above the home
+ * indicator with a gap on every side, so page content scrolls visibly beneath a
+ * frosted pane. Because it now overlaps content instead of a flat canvas, the
+ * saturate() boost that would have seamed against an empty bar is exactly what
+ * sells the frosted glass, so it comes back here.
  */
 .bottom-nav {
   position: fixed;
   z-index: 20;
-  right: 0;
-  bottom: 0;
-  left: 0;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom) + 12px);
+  transform: translateX(-50%);
+  width: min(440px, calc(100% - 24px));
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  padding: 6px 6px max(7px, env(safe-area-inset-bottom));
-  border-top: 1px solid var(--line);
-  background: color-mix(in srgb, var(--canvas) 88%, transparent);
-  /*
-   * Blur only. A saturate() boost boils the flat canvas showing through an
-   * empty bar into a slightly bluer colour than the page behind it, which is
-   * exactly the seam this bar is meant not to have.
-   */
-  -webkit-backdrop-filter: blur(18px);
-  backdrop-filter: blur(18px);
+  gap: 2px;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  border-radius: 26px;
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  box-shadow:
+    0 12px 32px -10px var(--scrim),
+    0 4px 12px -6px var(--shadow);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  backdrop-filter: blur(22px) saturate(180%);
 }
 .nav-button {
   display: grid;

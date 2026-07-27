@@ -107,7 +107,7 @@ export function AuthForm({ configured }: { configured: boolean }) {
           {pending
             ? "Please wait…"
             : mode === "sign-in"
-              ? "Open Kairos"
+              ? "Open Mori"
               : "Create account"}
         </button>
       </form>

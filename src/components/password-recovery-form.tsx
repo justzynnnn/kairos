@@ -98,7 +98,7 @@ export function PasswordRecoveryForm({ mode }: { mode: "request" | "reset" }) {
         href={mode === "reset" ? "/" : "/auth"}
         className="mt-5 inline-block text-sm font-semibold text-[var(--cyan-deep)]"
       >
-        {mode === "reset" ? "Return to Kairos" : "Back to sign in"}
+        {mode === "reset" ? "Return to Mori" : "Back to sign in"}
       </Link>
     </div>
   );

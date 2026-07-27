@@ -113,7 +113,7 @@ export function RepairWorkspace({
         return;
       }
       if (!response.ok)
-        throw new Error(data.error ?? "Kairos could not repair this schedule.");
+        throw new Error(data.error ?? "Mori could not repair this schedule.");
       setProposal(data);
       setSelected(
         data.alternatives.find((entry: Alternative) => entry.recommended)?.id ??
@@ -124,7 +124,7 @@ export function RepairWorkspace({
       setError(
         reason instanceof Error
           ? reason.message
-          : "Kairos could not repair this schedule.",
+          : "Mori could not repair this schedule.",
       );
     } finally {
       setBusy(false);
@@ -147,7 +147,7 @@ export function RepairWorkspace({
       });
       const data = await response.json();
       if (!response.ok)
-        throw new Error(data.error ?? "Kairos could not approve this repair.");
+        throw new Error(data.error ?? "Mori could not approve this repair.");
       setSuccess(data.message);
       setProposal(null);
       setRevision("");
@@ -156,7 +156,7 @@ export function RepairWorkspace({
       setError(
         reason instanceof Error
           ? reason.message
-          : "Kairos could not approve this repair.",
+          : "Mori could not approve this repair.",
       );
     } finally {
       setBusy(false);
@@ -177,7 +177,7 @@ export function RepairWorkspace({
             Repair without breaking your priorities
           </h2>
           <p className="mt-1 max-w-2xl text-sm text-[var(--muted)]">
-            Kairos keeps fixed commitments, deadlines, and required effort safe.
+            Mori keeps fixed commitments, deadlines, and required effort safe.
             Nothing changes until you approve a complete plan.
           </p>
         </div>

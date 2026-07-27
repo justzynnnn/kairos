@@ -147,7 +147,7 @@ export async function POST(request: Request) {
       {
         error: stale
           ? "Your schedule changed. Generate a fresh proposal before confirming."
-          : "Kairos could not confirm this proposal safely.",
+          : "Mori could not confirm this proposal safely.",
       },
       { status: stale ? 409 : 422 },
     );

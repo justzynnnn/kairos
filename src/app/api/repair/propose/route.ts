@@ -54,7 +54,7 @@ export async function POST(request: Request) {
       .single();
     if (error)
       return NextResponse.json(
-        { error: "Kairos could not safely save this repair proposal." },
+        { error: "Mori could not safely save this repair proposal." },
         { status: 500 },
       );
     proposalId = data.id;

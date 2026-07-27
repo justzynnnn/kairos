@@ -387,7 +387,7 @@ export default function Assistant() {
     <main className="page">
       <header>
         <p className="eyebrow">On device</p>
-        <h1>Plan with Kairos</h1>
+        <h1>Plan with Mori</h1>
         <p className="supporting">
           Speak or type in English or Taglish. Nothing changes until you
           confirm.
@@ -411,7 +411,7 @@ export default function Assistant() {
           capabilities.foundationModel.state !== "available" &&
           capabilities.foundationModel.reason && (
             <div className="notice">
-              {capabilities.foundationModel.reason} Kairos still plans on this
+              {capabilities.foundationModel.reason} Mori still plans on this
               phone.
               {capabilities.foundationModel.state === "downloading" && (
                 <button
@@ -428,7 +428,7 @@ export default function Assistant() {
         {speechBlocked && (
           <div className="notice">
             Dictation needs the microphone and speech recognition, which are
-            turned off for Kairos. Typing still works.
+            turned off for Mori. Typing still works.
             <button
               type="button"
               className="secondary full"
@@ -598,7 +598,7 @@ export default function Assistant() {
               <p className="eyebrow">Optional cloud fallback</p>
               <h2 id="cloud-title">Send a filtered request to Gemini?</h2>
               <p className="supporting">
-                Kairos sends this command, relevant free/busy times, active
+                Mori sends this command, relevant free/busy times, active
                 hours, and minimum preferences. Unrelated titles become “Busy.”
                 Audio, locations, messages, contacts, files, and the rest of
                 your schedule are not sent.

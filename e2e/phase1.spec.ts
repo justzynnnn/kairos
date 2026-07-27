@@ -8,11 +8,11 @@ test("all core areas are reachable with route-specific titles", async ({
   page,
 }) => {
   for (const [path, heading, title] of [
-    ["/", /Good (morning|afternoon|evening), Justin/, "Today · Kairos"],
-    ["/planner", "Planner", "Planner · Kairos"],
-    ["/assistant", "Plan with Kairos", "Assistant · Kairos"],
-    ["/inbox", "Inbox", "Chats · Kairos"],
-    ["/settings/account", "Settings", "Account · Kairos"],
+    ["/", /Good (morning|afternoon|evening), Justin/, "Today · Mori"],
+    ["/planner", "Planner", "Planner · Mori"],
+    ["/assistant", "Plan with Mori", "Assistant · Mori"],
+    ["/inbox", "Inbox", "Chats · Mori"],
+    ["/settings/account", "Settings", "Account · Mori"],
   ] as const) {
     await page.goto(path);
     await expect(
@@ -63,12 +63,12 @@ test("Home command opens the complete Assistant workflow", async ({ page }) => {
   await page.goto("/");
   await page.waitForLoadState("networkidle");
   const value = "Add dentist appointment tomorrow at 4pm for one hour";
-  await page.getByLabel("Ask Kairos from Home").fill(value);
+  await page.getByLabel("Ask Mori from Home").fill(value);
   await page.getByRole("button", { name: "Open in Assistant" }).click();
   await expect(page).toHaveURL(/\/assistant\?command=/);
   await expect(page.getByLabel("What needs to happen?")).toHaveValue(value);
   await expect(
-    page.getByRole("heading", { name: "Plan with Kairos" }),
+    page.getByRole("heading", { name: "Plan with Mori" }),
   ).toBeVisible();
 });
 
@@ -90,7 +90,7 @@ test("mobile navigation exposes the focused product areas", async ({
   test.skip(!info.project.name.includes("iphone"), "mobile only");
   await page.goto("/");
   const nav = page.getByTestId("mobile-navigation");
-  for (const label of ["Home", "Planner", "Kairos", "Inbox", "Settings"])
+  for (const label of ["Home", "Planner", "Mori", "Inbox", "Settings"])
     await expect(nav.getByText(label, { exact: true })).toBeVisible();
 });
 

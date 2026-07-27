@@ -141,7 +141,7 @@ export function PreferencesSettings() {
               Remembered preferences
             </h2>
             <p className="supporting-text">
-              Kairos only stores defaults you deliberately asked it to remember.
+              Mori only stores defaults you deliberately asked it to remember.
             </p>
           </div>
         </div>
@@ -274,7 +274,7 @@ export function PreferencesSettings() {
           </div>
         ) : (
           <p className="empty-row">
-            No remembered preferences yet. Ask Kairos to remember a scheduling
+            No remembered preferences yet. Ask Mori to remember a scheduling
             preference from the Assistant.
           </p>
         )}
@@ -294,7 +294,7 @@ export function PreferencesSettings() {
       <ConfirmDialog
         open={Boolean(deleteTarget)}
         title={`Delete ${deleteTarget?.category ?? "preference"}?`}
-        description="Kairos will stop applying this remembered default. This cannot be undone."
+        description="Mori will stop applying this remembered default. This cannot be undone."
         confirmLabel="Delete preference"
         busy={Boolean(deleteTarget && busyId === deleteTarget.id)}
         onCancel={() => setDeleteTarget(null)}

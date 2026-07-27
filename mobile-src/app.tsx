@@ -9,16 +9,15 @@ import {
 import { getSecureValue, setSecureValue } from "@/lib/mobile/store";
 import { AuthProvider, SignIn, useAuth } from "./lib/auth";
 import { DataProvider, useMobileData } from "./lib/data";
+import { Moon, Sun } from "./lib/icons";
 import {
-  CalendarRange,
-  House,
-  MessagesSquare,
-  Moon,
-  Sparkles,
-  Sun,
-  UserRound,
-  type LucideIcon,
-} from "./lib/icons";
+  CalendarIcon,
+  HouseIcon,
+  MessageIcon,
+  PersonIcon,
+  SparklesIcon,
+  type SFIcon,
+} from "./lib/sf-icons";
 import { badgeCount } from "./lib/counts";
 import { launchStartedAt, recordMetric } from "./lib/metrics";
 import { hideSplashScreen } from "./lib/splash";
@@ -41,14 +40,14 @@ type Tab = "home" | "planner" | "assistant" | "inbox" | "profile";
 const tabs: Array<{
   id: Tab;
   label: string;
-  icon: LucideIcon;
+  icon: SFIcon;
   component: ComponentType;
 }> = [
-  { id: "home", label: "Home", icon: House, component: Home },
-  { id: "planner", label: "Planner", icon: CalendarRange, component: Planner },
-  { id: "assistant", label: "Kairos", icon: Sparkles, component: Assistant },
-  { id: "inbox", label: "Inbox", icon: MessagesSquare, component: Inbox },
-  { id: "profile", label: "Profile", icon: UserRound, component: Profile },
+  { id: "home", label: "Home", icon: HouseIcon, component: Home },
+  { id: "planner", label: "Planner", icon: CalendarIcon, component: Planner },
+  { id: "assistant", label: "Mori", icon: SparklesIcon, component: Assistant },
+  { id: "inbox", label: "Inbox", icon: MessageIcon, component: Inbox },
+  { id: "profile", label: "Settings", icon: PersonIcon, component: Profile },
 ];
 
 // The Profile tab used to be Settings; a phone restored onto #settings still
@@ -88,7 +87,7 @@ function InitialLoadError({
     <main className="page initial-error" role="alert">
       <section className="panel panel-pad page">
         <div>
-          <p className="eyebrow">Kairos could not finish loading</p>
+          <p className="eyebrow">Mori could not finish loading</p>
           <h1>Your account is safe</h1>
           <p className="supporting">{message}</p>
         </div>
@@ -203,8 +202,8 @@ function Shell() {
     <div className="mobile-app">
       <header className="topbar">
         <div className="brand">
-          <span className="brand-mark">K</span>
-          Kairos
+          <span className="brand-mark">M</span>
+          Mori
         </div>
         <ThemeButton />
       </header>
@@ -251,7 +250,7 @@ function Shell() {
             aria-current={tab === entry.id ? "page" : undefined}
             onClick={(event) => navigate(entry.id, event.timeStamp)}
           >
-            <entry.icon size={22} strokeWidth={2} aria-hidden />
+            <entry.icon size={26} filled={tab === entry.id} />
             {entry.label}
             {entry.id === "inbox" && waiting > 0 && (
               <span className="count-badge" aria-label={waiting + " waiting"}>
@@ -296,8 +295,8 @@ function SessionGate() {
     return (
       <main className="auth" aria-label="Restoring secure session">
         <div className="brand">
-          <span className="brand-mark">K</span>
-          Kairos
+          <span className="brand-mark">M</span>
+          Mori
         </div>
         <div className="skeleton" />
       </main>

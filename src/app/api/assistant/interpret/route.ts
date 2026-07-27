@@ -121,7 +121,7 @@ export async function POST(request: Request) {
     const message =
       error instanceof SchedulingValidationError
         ? error.message
-        : "Kairos could not build a safe proposal.";
+        : "Mori could not build a safe proposal.";
     return NextResponse.json({
       status: "needs_input",
       followUpKind: "clarify",

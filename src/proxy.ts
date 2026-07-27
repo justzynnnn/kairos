@@ -50,7 +50,7 @@ export async function proxy(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Kairos is not configured. Set the Supabase environment variables.",
+            "Mori is not configured. Set the Supabase environment variables.",
         },
         { status: 503 },
       );
