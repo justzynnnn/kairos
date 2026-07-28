@@ -7,6 +7,8 @@ import {
   type ComponentType,
 } from "react";
 import { getSecureValue, setSecureValue } from "@/lib/mobile/store";
+import MoriMascot from "./components/mori-mascot";
+import MoriBrand from "./components/mori-brand";
 import { AuthProvider, SignIn, useAuth } from "./lib/auth";
 import { DataProvider, useMobileData } from "./lib/data";
 import { Moon, Sun } from "./lib/icons";
@@ -66,7 +68,16 @@ function currentTab(): Tab {
 
 function LoadingPage() {
   return (
-    <div className="page" aria-label="Loading">
+    <div className="page loading-page" aria-label="Loading">
+      <div className="loading-mori">
+        <MoriMascot
+          state="planning"
+          alt="Mori is getting your day ready"
+          className="loading-mori-avatar"
+          eager
+        />
+        <p className="supporting">Mori is getting your day ready…</p>
+      </div>
       <div className="skeleton" />
       <div className="skeleton" />
       <div className="skeleton" />
@@ -201,10 +212,7 @@ function Shell() {
   return (
     <div className="mobile-app">
       <header className="topbar">
-        <div className="brand">
-          <span className="brand-mark">M</span>
-          Mori
-        </div>
+        <MoriBrand />
         <ThemeButton />
       </header>
       {/*
@@ -294,10 +302,13 @@ function SessionGate() {
   if (auth.loading)
     return (
       <main className="auth" aria-label="Restoring secure session">
-        <div className="brand">
-          <span className="brand-mark">M</span>
-          Mori
-        </div>
+        <MoriBrand />
+        <MoriMascot
+          state="planning"
+          alt="Mori is restoring your session"
+          className="session-mori-avatar"
+          eager
+        />
         <div className="skeleton" />
       </main>
     );

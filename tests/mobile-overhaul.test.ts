@@ -84,6 +84,41 @@ describe("bundled mobile architecture", () => {
     expect(viteConfig).toContain('"NEXT_PUBLIC_"');
   });
 
+  it("bundles Mori artwork into the native loading, Home, and AI views", () => {
+    const mascot = fs.readFileSync(
+      "mobile-src/components/mori-mascot.tsx",
+      "utf8",
+    );
+    const app = fs.readFileSync("mobile-src/app.tsx", "utf8");
+    const auth = fs.readFileSync("mobile-src/lib/auth.tsx", "utf8");
+    const home = fs.readFileSync("mobile-src/pages/home.tsx", "utf8");
+    const assistant = fs.readFileSync("mobile-src/pages/assistant.tsx", "utf8");
+    expect(mascot).toContain("mori-wave.png");
+    expect(mascot).toContain("mori-thinking.png");
+    expect(mascot).toContain("mori-planning.png");
+    expect(app).toContain('state="planning"');
+    expect(auth).toContain('className="auth-mori-avatar"');
+    expect(home).toContain('state="wave"');
+    expect(assistant).toContain("state={moriState}");
+  });
+
+  it("keeps the native presentation aligned with the approved web composition", () => {
+    const app = fs.readFileSync("mobile-src/app.tsx", "utf8");
+    const auth = fs.readFileSync("mobile-src/lib/auth.tsx", "utf8");
+    const home = fs.readFileSync("mobile-src/pages/home.tsx", "utf8");
+    const assistant = fs.readFileSync("mobile-src/pages/assistant.tsx", "utf8");
+    const styles = fs.readFileSync("mobile-src/styles.css", "utf8");
+    expect(app).toContain("<MoriBrand />");
+    expect(auth).toContain("auth-story-native");
+    expect(home).toContain("home-web-hero");
+    expect(home).toContain("home-plan-entry");
+    expect(home).toContain("next-up-panel");
+    expect(assistant).toContain("assistant-web-header");
+    expect(styles).toContain(".home-web-hero-mori");
+    expect(styles).toContain(".home-plan-entry-field");
+    expect(styles).toContain(".assistant-web-header");
+  });
+
   it("uses structured Apple generation and on-device speech", () => {
     const swift = fs.readFileSync(
       "ios/App/App/KairosIntelligencePlugin.swift",
@@ -92,6 +127,8 @@ describe("bundled mobile architecture", () => {
     expect(swift).toContain("@Generable");
     expect(swift).toContain("generating: NativePlannerResponse.self");
     expect(swift).toContain("SpeechTranscriber");
+    expect(swift).toContain("bestAvailableAudioFormat");
+    expect(swift).toContain("AVAudioConverter");
     expect(swift).toContain("requiresOnDeviceRecognition = true");
   });
 
@@ -505,6 +542,16 @@ describe("phase 5 capture and onboarding", () => {
     expect(assistant).not.toContain("consentGranted");
   });
 
+  it("retries Apple Intelligence before the deterministic final fallback", () => {
+    const retry = assistant.indexOf("interpretWithAppleRecovery");
+    const reset = assistant.indexOf("await clearNativePlannerHistory()");
+    const fallback = assistant.indexOf("const deterministic =");
+    expect(retry).toBeGreaterThan(-1);
+    expect(reset).toBeGreaterThan(retry);
+    expect(fallback).toBeGreaterThan(reset);
+    expect(assistant).toContain('"MODEL_RESPONSE_INVALID"');
+  });
+
   it("routes recording through a dedicated voice surface", () => {
     const voice = fs.readFileSync(
       "mobile-src/components/voice-sheet.tsx",
@@ -515,7 +562,7 @@ describe("phase 5 capture and onboarding", () => {
     // on the tap rather than after permission and audio-session setup.
     expect(assistant.indexOf("setRecording(true)")).toBeGreaterThan(-1);
     expect(assistant.indexOf("setRecording(true)")).toBeLessThan(
-      assistant.indexOf("await NativeSpeech.start"),
+      assistant.indexOf("await startSpeechWithTimeout"),
     );
     // Cancelling gives back what was typed before the mic opened.
     expect(assistant).toContain("setCommand(commandBeforeVoice.current)");
@@ -599,7 +646,9 @@ describe("phase 5 capture and onboarding", () => {
       if (activate < 0 || tap < 0) continue;
       expect(activate).toBeLessThan(tap);
     }
-    expect(swift).toContain("guard format.sampleRate > 0");
+    expect(swift).toContain("guard captureFormat.sampleRate > 0");
+    expect(swift).toContain("converted.frameLength > 0");
+    expect(swift).toContain("transcriptStartId");
     expect(swift).toContain("onDeviceRecognizer(preferring:");
     expect(swift).toContain("SPEECH_LOCALE_UNSUPPORTED");
   });

@@ -176,12 +176,14 @@ private struct FreeWindowTool: Tool {
 /// Why a recording could not start, so the web layer can say something the user
 /// can act on instead of one generic failure.
 enum SpeechStartError: Error {
+    case audioFormatUnavailable
     case modelUnavailable
     case noAudioInput
     case noOnDeviceLocale
 
     var code: String {
         switch self {
+        case .audioFormatUnavailable: return "SPEECH_AUDIO_FORMAT_UNAVAILABLE"
         case .modelUnavailable: return "SPEECH_MODEL_UNAVAILABLE"
         case .noAudioInput: return "SPEECH_NO_INPUT"
         case .noOnDeviceLocale: return "SPEECH_LOCALE_UNSUPPORTED"
@@ -190,6 +192,8 @@ enum SpeechStartError: Error {
 
     var message: String {
         switch self {
+        case .audioFormatUnavailable:
+            return "This phone could not prepare a compatible transcription audio format."
         case .modelUnavailable:
             return "The on-device dictation model is still downloading. Try again in a moment."
         case .noAudioInput:
@@ -225,6 +229,8 @@ private final class ModernSpeechSession {
     private var continuation: AsyncStream<AnalyzerInput>.Continuation?
     private var analysisTask: Task<Void, Never>?
     private var resultTask: Task<Void, Never>?
+    private var audioConverter: AVAudioConverter?
+    private var tapInstalled = false
     private let onResult: @Sendable (String, Bool) -> Void
     private let onLevel: @Sendable (Double) -> Void
     let localeIdentifier: String
@@ -259,9 +265,21 @@ private final class ModernSpeechSession {
         try AVAudioSession.sharedInstance().setCategory(.record, mode: .measurement, options: [.duckOthers])
         try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
         let inputNode = engine.inputNode
-        let format = inputNode.outputFormat(forBus: 0)
-        guard format.sampleRate > 0 else { throw SpeechStartError.noAudioInput }
-        try await analyzer.prepareToAnalyze(in: format)
+        let captureFormat = inputNode.outputFormat(forBus: 0)
+        guard captureFormat.sampleRate > 0 else {
+            throw SpeechStartError.noAudioInput
+        }
+        guard let analyzerFormat = await SpeechAnalyzer.bestAvailableAudioFormat(
+            compatibleWith: modules,
+            considering: captureFormat
+        ), let converter = AVAudioConverter(
+            from: captureFormat,
+            to: analyzerFormat
+        ) else {
+            throw SpeechStartError.audioFormatUnavailable
+        }
+        audioConverter = converter
+        try await analyzer.prepareToAnalyze(in: analyzerFormat)
         let stream = AsyncStream<AnalyzerInput> { continuation in
             self.continuation = continuation
         }
@@ -281,26 +299,55 @@ private final class ModernSpeechSession {
                 await analyzer.cancelAndFinishNow()
             }
         }
-        inputNode.installTap(onBus: 0, bufferSize: 1_024, format: format) { [weak self] buffer, _ in
+        inputNode.installTap(onBus: 0, bufferSize: 1_024, format: captureFormat) { [weak self] buffer, _ in
             guard let self else { return }
-            // Measured before the buffer is handed over, never after. Once it
-            // has been yielded the analyzer owns it and may recycle its sample
-            // memory on another thread, so reading floatChannelData afterwards
-            // is a use-after-free — and this closure runs on the real-time
-            // audio thread, where that is a hard crash rather than bad data.
             let level = normalizedLevel(buffer)
-            self.continuation?.yield(AnalyzerInput(buffer: buffer))
+            self.convertAndYield(buffer, to: analyzerFormat)
             self.onLevel(level)
         }
+        tapInstalled = true
         engine.prepare()
         try engine.start()
     }
 
-    func stop(cancelled: Bool) async {
-        if engine.isRunning {
-            engine.inputNode.removeTap(onBus: 0)
-            engine.stop()
+    private func convertAndYield(
+        _ buffer: AVAudioPCMBuffer,
+        to analyzerFormat: AVAudioFormat
+    ) {
+        guard let audioConverter else { return }
+        let rateRatio = analyzerFormat.sampleRate / buffer.format.sampleRate
+        let estimatedFrames =
+            ceil(Double(buffer.frameLength) * rateRatio) + 32
+        let capacity = AVAudioFrameCount(max(estimatedFrames, 1))
+        guard let converted = AVAudioPCMBuffer(
+            pcmFormat: analyzerFormat,
+            frameCapacity: capacity
+        ) else { return }
+
+        var suppliedInput = false
+        var conversionError: NSError?
+        audioConverter.convert(
+            to: converted,
+            error: &conversionError
+        ) { _, status in
+            guard !suppliedInput else {
+                status.pointee = .noDataNow
+                return nil
+            }
+            suppliedInput = true
+            status.pointee = .haveData
+            return buffer
         }
+        guard conversionError == nil, converted.frameLength > 0 else { return }
+        continuation?.yield(AnalyzerInput(buffer: converted))
+    }
+
+    func stop(cancelled: Bool) async {
+        if tapInstalled {
+            engine.inputNode.removeTap(onBus: 0)
+            tapInstalled = false
+        }
+        if engine.isRunning { engine.stop() }
         continuation?.finish()
         continuation = nil
         if cancelled {
@@ -310,6 +357,7 @@ private final class ModernSpeechSession {
         }
         analysisTask?.cancel()
         resultTask?.cancel()
+        audioConverter = nil
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 }
@@ -338,6 +386,7 @@ final class KairosIntelligencePlugin: CAPPlugin, CAPBridgedPlugin {
     private var modernSpeech: AnyObject?
     private var transcriptSequence = 0
     private var transcriptSessionId: String?
+    private var transcriptStartId: String?
     private var lastLevelAt: CFAbsoluteTime = 0
     private var backgroundReleaseWorkItem: DispatchWorkItem?
 
@@ -529,13 +578,20 @@ final class KairosIntelligencePlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func startTranscription(_ call: CAPPluginCall) {
-        guard transcriptSessionId == nil else {
+        guard transcriptSessionId == nil, transcriptStartId == nil else {
             call.reject("A transcription is already active.")
             return
         }
+        let startId = UUID().uuidString
+        transcriptStartId = startId
         requestSpeechPermission { [weak self] granted in
             guard let self else { return }
+            guard self.transcriptStartId == startId else {
+                call.resolve(["sessionId": startId, "cancelled": true])
+                return
+            }
             guard granted else {
+                self.transcriptStartId = nil
                 call.reject("Microphone or speech recognition permission was denied.", "SPEECH_PERMISSION_DENIED")
                 return
             }
@@ -571,18 +627,23 @@ final class KairosIntelligencePlugin: CAPPlugin, CAPBridgedPlugin {
                          * just started belongs to nobody, and without this it
                          * would hold the microphone with no way to stop it.
                          */
-                        guard self.transcriptSessionId == sessionId else {
+                        guard self.transcriptSessionId == sessionId,
+                              self.transcriptStartId == startId else {
                             await session.stop(cancelled: true)
                             if self.modernSpeech === session { self.modernSpeech = nil }
+                            self.transcriptStartId = nil
                             call.resolve(["sessionId": sessionId, "cancelled": true])
                             return
                         }
+                        self.transcriptStartId = nil
                         call.resolve(["sessionId": sessionId, "locale": session.localeIdentifier, "engine": "speech-analyzer"])
                     } else {
                         try self.startLegacySpeech(localeIdentifier: requestedLocale)
+                        self.transcriptStartId = nil
                         call.resolve(["sessionId": sessionId, "locale": self.legacyRecognizer?.locale.identifier ?? "en-PH", "engine": "on-device-speech-recognizer"])
                     }
                 } catch {
+                    self.transcriptStartId = nil
                     self.transcriptSessionId = nil
                     self.modernSpeech = nil
                     self.stopLegacySpeech(cancelled: true)
@@ -754,10 +815,12 @@ final class KairosIntelligencePlugin: CAPPlugin, CAPBridgedPlugin {
 
     private func finishTranscription(cancelled: Bool, call: CAPPluginCall) {
         guard let sessionId = transcriptSessionId else {
+            transcriptStartId = nil
             call.resolve(["active": false])
             return
         }
         transcriptSessionId = nil
+        transcriptStartId = nil
         if #available(iOS 26.0, *), let session = modernSpeech as? ModernSpeechSession {
             Task {
                 await session.stop(cancelled: cancelled)

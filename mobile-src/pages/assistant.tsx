@@ -26,6 +26,7 @@ import {
 import { deterministicInterpret } from "@/lib/scheduling/fallback";
 import type { ProposalItem, SchedulingIntent } from "@/lib/scheduling/schema";
 import type { CalendarItem } from "@/lib/types";
+import MoriMascot, { type MobileMoriState } from "../components/mori-mascot";
 import Toast from "../components/toast";
 import VoiceSheet from "../components/voice-sheet";
 import { useAuth } from "../lib/auth";
@@ -57,6 +58,50 @@ const modelLabels: Record<
   unavailable: "On-device planning",
   unsupported: "On-device planning",
 };
+
+const recoverableAppleFailures = new Set([
+  "MODEL_FAILED",
+  "MODEL_RESPONSE_INVALID",
+]);
+
+async function interpretWithAppleRecovery(options: {
+  command: string;
+  timezone: string;
+  contextVersion: number;
+  history: string[];
+}) {
+  const first = await interpretNatively(options);
+  if (first.ok || !recoverableAppleFailures.has(first.code)) return first;
+
+  // Foundation Models sessions can exhaust their context or reject a
+  // structured response even though the system model is healthy. Give Apple
+  // Intelligence one clean session before the grammar parser gets a turn.
+  await clearNativePlannerHistory();
+  await prepareNativePlanner();
+  return interpretNatively({ ...options, history: [] });
+}
+
+async function startSpeechWithTimeout(locale?: string) {
+  let timeout = 0;
+  try {
+    return await Promise.race([
+      NativeSpeech.start(locale),
+      new Promise<never>((_, reject) => {
+        timeout = window.setTimeout(
+          () =>
+            reject(
+              new Error(
+                "Private transcription took too long to start. Please try again.",
+              ),
+            ),
+          15_000,
+        );
+      }),
+    ]);
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
 
 export default function Assistant() {
   const auth = useAuth();
@@ -280,11 +325,12 @@ export default function Assistant() {
     clearResult();
     await remember("user", value);
 
-    // Apple Intelligence first, then the deterministic parser. The cascade is
-    // automatic: the tier that answered is reported afterwards, never chosen.
+    // Apple Intelligence gets a clean-session retry before the deterministic
+    // grammar is allowed to run. The grammar is the final safety net, not the
+    // normal path for a temporary model or structured-output failure.
     let nativeFailure: string | null = null;
     if (mobileConfig.features.applePlanner) {
-      const native = await interpretNatively({
+      const native = await interpretWithAppleRecovery({
         command: value,
         timezone,
         contextVersion: scheduleVersion,
@@ -337,7 +383,8 @@ export default function Assistant() {
   }
 
   async function startVoice() {
-    if (!mobileConfig.features.nativeSpeech) return;
+    if (!mobileConfig.features.nativeSpeech || startingVoice || recording)
+      return;
     // The sheet opens before the native call rather than after it. Starting a
     // session means a permission check, an audio-session activation and
     // sometimes a model download, and a button that does nothing for a second
@@ -349,10 +396,11 @@ export default function Assistant() {
     // before the mic opened has to be kept somewhere to survive a cancel.
     commandBeforeVoice.current = command;
     try {
-      await NativeSpeech.start(capabilities?.speech.selectedLocale);
+      await startSpeechWithTimeout(capabilities?.speech.selectedLocale);
       transcriptionStartedAt.current = metricNow();
       setStartingVoice(false);
     } catch (reason) {
+      void NativeSpeech.cancel().catch(() => null);
       setStartingVoice(false);
       setVoiceError(
         reason instanceof Error
@@ -393,19 +441,38 @@ export default function Assistant() {
   const speechBlocked =
     capabilities?.speech.state === "denied" ||
     capabilities?.speech.state === "restricted";
+  const moriState: MobileMoriState = recording
+    ? "listening"
+    : busy
+      ? "planning"
+      : proposal
+        ? "reviewing"
+        : undo
+          ? "success"
+          : command.trim()
+            ? "thinking"
+            : "wave";
 
   return (
-    <main className="page">
-      <header>
-        <p className="eyebrow">On device</p>
-        <h1>Plan with Mori</h1>
-        <p className="supporting">
-          {autoMode
-            ? "Speak or type in English or Taglish. Items go straight to your planner."
-            : "Speak or type in English or Taglish. Nothing changes until you confirm."}
-        </p>
+    <main className="page assistant-page">
+      <header className="assistant-web-header">
+        <MoriMascot
+          state={moriState}
+          alt="Mori is ready to plan"
+          className="assistant-web-avatar"
+          eager
+        />
+        <div>
+          <p className="eyebrow">Conversational scheduling</p>
+          <h1>Plan with Mori</h1>
+          <p className="supporting">
+            {autoMode
+              ? "Speak or type in English or Taglish. Mori uses Apple Intelligence first, then adds clear plans directly."
+              : "Speak or type in English or Taglish. Review every assumption and change before it reaches your schedule."}
+          </p>
+        </div>
       </header>
-      <section className="panel panel-pad page">
+      <section className="panel panel-pad page assistant-command-card">
         <div className="actions" style={{ justifyContent: "space-between" }}>
           <span className="badge">
             {modelLabels[capabilities?.foundationModel.state ?? "unsupported"]}

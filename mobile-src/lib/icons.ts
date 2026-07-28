@@ -26,6 +26,7 @@ export {
   UserPlus,
   UserRound,
   Users,
+  Waves,
   X,
 } from "lucide-react";
 export type { LucideIcon } from "lucide-react";

@@ -15,6 +15,8 @@ import {
   getSecureValue,
   setSecureValue,
 } from "@/lib/mobile/store";
+import MoriBrand from "../components/mori-brand";
+import MoriMascot from "../components/mori-mascot";
 import { mobileConfig } from "./config";
 
 type TokenResponse = {
@@ -353,12 +355,25 @@ export function SignIn() {
     }
   }
   return (
-    <main className="auth">
-      <div className="brand">
-        <span className="brand-mark">M</span>
-        Mori
-      </div>
-      <section className="auth-card">
+    <main className="auth auth-layout-native">
+      <section className="auth-story-native">
+        <MoriBrand />
+        <div className="auth-story-content">
+          <MoriMascot
+            state="wave"
+            alt="Mori, your planning companion"
+            className="auth-mori-avatar"
+            eager
+          />
+          <p className="eyebrow">Your time. Your rules.</p>
+          <h1>A calmer way to protect a busy day.</h1>
+          <p className="supporting">
+            Plan, coordinate, and recover when life changes—without giving up
+            control of your schedule.
+          </p>
+        </div>
+      </section>
+      <section className="auth-card auth-panel-native">
         <div className="segmented-control" aria-label="Authentication mode">
           <button
             type="button"
@@ -381,13 +396,13 @@ export function SignIn() {
             Create account
           </button>
         </div>
-        <div>
-          <p className="eyebrow">Mori</p>
-          <h1>{mode === "sign-in" ? "Welcome back" : "Protect your time"}</h1>
+        <div className="auth-form-heading">
+          <p className="eyebrow">Private by default</p>
+          <h2>{mode === "sign-in" ? "Welcome back" : "Protect your time"}</h2>
           <p className="supporting">
             {mode === "sign-in"
-              ? "Your session is kept in this phone's Keychain."
-              : "Your schedule starts private."}
+              ? "Your session is protected in this phone's Keychain."
+              : "Your schedule starts private and stays under your control."}
           </p>
         </div>
         {auth.error && <div className="error">{auth.error}</div>}

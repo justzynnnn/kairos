@@ -1,6 +1,7 @@
 import { useMemo, useRef, type FormEvent } from "react";
 import type { CalendarItem } from "@/lib/types";
 import EmptyState from "../components/empty-state";
+import MoriMascot from "../components/mori-mascot";
 import { useMobileData } from "../lib/data";
 import { clockTime, dayKey, hourOfDay, longDate } from "../lib/datetime";
 import { openAssistantWith } from "../lib/draft";
@@ -126,64 +127,95 @@ export default function Home() {
     capture.current?.focus();
   }
 
+  function recordCapture() {
+    openAssistantWith({ text: "", submitted: false, record: true });
+  }
+
   return (
-    <main className="page">
-      <header>
-        <p className="eyebrow">{longDate(now, timezone)}</p>
-        <h1>
-          {greeting}, {data.viewer.fullName.split(" ")[0]}
-        </h1>
-        <p className="supporting">What needs you next.</p>
-      </header>
+    <main className="page home-page">
+      <div className="home-plan-composition">
+        <header className="home-web-hero">
+          <div className="home-web-hero-copy">
+            <p className="eyebrow">{longDate(now, timezone)}</p>
+            <h1 className="home-web-hero-title">
+              {greeting},<span>{data.viewer.fullName.split(" ")[0]}</span>
+            </h1>
+            <p className="supporting">
+              Here is what needs your attention next.
+            </p>
+          </div>
+        </header>
+        <MoriMascot state="wave" alt="" className="home-web-hero-mori" eager />
 
-      <section className="panel panel-pad">
-        <form className="actions" onSubmit={submitCapture}>
-          <label className="field" style={{ flex: 1 }}>
-            <span className="eyebrow">Quick capture</span>
-            <input
-              ref={capture}
-              name="command"
-              placeholder="What needs to happen?"
-              maxLength={2_000}
-              autoComplete="off"
-            />
-          </label>
-          <button
-            type="button"
-            className="secondary"
-            aria-label="Record instead"
-            onClick={() =>
-              openAssistantWith({ text: "", submitted: false, record: true })
-            }
-          >
-            <Mic size={18} strokeWidth={2.5} aria-hidden />
-          </button>
-          <button className="primary" aria-label="Plan this">
-            <Send size={18} strokeWidth={2.5} aria-hidden />
-          </button>
-        </form>
-      </section>
+        <div className="home-priority-stack">
+          <section className="home-plan-entry">
+            <div className="home-plan-entry-copy">
+              <span className="home-plan-entry-icon" aria-hidden="true">
+                <Sparkles size={24} strokeWidth={2.2} />
+              </span>
+              <div>
+                <h2>Plan with Mori</h2>
+                <p>
+                  Start a conversation to plan your day, review changes, and
+                  make time for what matters.
+                </p>
+              </div>
+            </div>
+            <form className="home-plan-entry-field" onSubmit={submitCapture}>
+              <input
+                ref={capture}
+                name="command"
+                placeholder="What needs to happen?"
+                maxLength={2_000}
+                autoComplete="off"
+                aria-label="Ask Mori from Home"
+              />
+              <button
+                type="button"
+                className="home-record-button"
+                aria-label="Record instead"
+                onClick={recordCapture}
+              >
+                <Mic size={17} strokeWidth={2.5} aria-hidden />
+              </button>
+              <button aria-label="Open in Mori">
+                <Send size={17} strokeWidth={2.5} aria-hidden />
+              </button>
+            </form>
+            <small className="home-plan-entry-note">
+              <Sparkles size={16} strokeWidth={2.2} aria-hidden /> Mori reviews
+              assumptions, conflicts, and every proposed change.
+            </small>
+            <small className="home-plan-entry-native-note">
+              Apple Intelligence planning and private voice transcription are
+              available on this iPhone.
+            </small>
+          </section>
 
-      <section className="hero">
-        <p className="eyebrow">Next up</p>
-        <h2>{next?.title ?? "Your schedule is clear"}</h2>
-        <p>
-          {next
-            ? time(next.startAt, timezone) +
-              (next.locationLabel ? " · " + next.locationLabel : "")
-            : "There are no upcoming timed items."}
-        </p>
-        {!next && (
-          <button
-            type="button"
-            className="secondary"
-            style={{ marginTop: 14 }}
-            onClick={focusCapture}
-          >
-            Capture something
-          </button>
-        )}
-      </section>
+          <section className="next-up-panel">
+            <p className="eyebrow">Next up</p>
+            <p className="next-up-meta">
+              {next
+                ? time(next.startAt, timezone) +
+                  " · " +
+                  (next.category ?? next.type)
+                : "Your open time"}
+            </p>
+            <h2>{next?.title ?? "Your schedule is clear"}</h2>
+            <p>
+              {next?.locationLabel ??
+                (next
+                  ? "Your next commitment is protected."
+                  : "There are no upcoming timed items.")}
+            </p>
+            {!next && (
+              <button type="button" onClick={focusCapture}>
+                Capture something
+              </button>
+            )}
+          </section>
+        </div>
+      </div>
 
       {deadlines.length > 0 && (
         <section className="panel panel-pad">
