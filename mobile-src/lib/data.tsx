@@ -38,10 +38,18 @@ type DataState = {
   error: string | null;
   conflicts: LocalConflict[];
   refresh(): Promise<void>;
-  confirmCreates(items: Array<Record<string, unknown>>): Promise<void>;
+  /** Resolves with the items that were queued, so a caller can offer an undo. */
+  confirmCreates(
+    items: Array<Record<string, unknown>>,
+  ): Promise<CalendarItem[]>;
   queueItemAction(
     item: CalendarItem,
     kind: "complete" | "cancel",
+  ): Promise<void>;
+  rescheduleItem(
+    item: CalendarItem,
+    startAt: string,
+    endAt: string,
   ): Promise<void>;
   discardConflict(operationId: string): Promise<void>;
 };
@@ -75,7 +83,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [conflicts, setConflicts] = useState<LocalConflict[]>([]);
   const dataRef = useRef<MobileBootstrap | null>(null);
   const lastSyncAt = useRef(0);
-  const cacheKey = auth.user ? "bootstrap:" + auth.user.id : "bootstrap";
+  /*
+   * The user *id*, not the user object. A silent token refresh replaces the
+   * session — and with it `auth.user` — every time it runs, which changed the
+   * identity of `refresh` and re-fired the bootstrap effect for an account that
+   * had not changed. Depending on the id makes those refreshes free.
+   */
+  const userId = auth.user?.id ?? null;
+  const cacheKey = userId ? "bootstrap:" + userId : "bootstrap";
 
   const syncPending = useCallback(async (token: string) => {
     const pending = await pendingLocalOperations();
@@ -114,7 +129,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refresh = useCallback(async () => {
-    if (!auth.accessToken || !auth.user) return;
+    if (!auth.accessToken || !userId) return;
     setState("refreshing");
     setError(null);
     try {
@@ -201,7 +216,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         reason instanceof Error ? reason.message : "Refresh is unavailable.",
       );
     }
-  }, [auth.accessToken, auth.user, cacheKey, syncPending]);
+  }, [auth.accessToken, userId, cacheKey, syncPending]);
 
   useEffect(() => {
     dataRef.current = data;
@@ -209,7 +224,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true;
-    if (!auth.user) return;
+    if (!userId) return;
     // Paint whatever this phone already trusts, then reconcile in the
     // background. The cache is read regardless of the offlineSync flag, which
     // governs whether local *mutations* may be queued, not whether we may show
@@ -235,7 +250,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("online", online);
       document.removeEventListener("visibilitychange", foregrounded);
     };
-  }, [auth.user, cacheKey, refresh]);
+  }, [userId, cacheKey, refresh]);
 
   const value = useMemo<DataState>(
     () => ({
@@ -245,11 +260,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       conflicts,
       refresh,
       async confirmCreates(items) {
-        if (!data) return;
+        if (!data) return [];
         if (!navigator.onLine && !mobileConfig.features.offlineSync) {
           setError("Offline schedule changes are not enabled in this build.");
           setState("offline");
-          return;
+          return [];
         }
         const created: CalendarItem[] = [];
         const { mobileSchedulePayloadSchema } = await contracts();
@@ -306,8 +321,76 @@ export function DataProvider({ children }: { children: ReactNode }) {
           } as CalendarItem);
         }
         const next = { ...data, calendar: [...data.calendar, ...created] };
+        dataRef.current = next;
         setData(next);
         setState(navigator.onLine ? "refreshing" : "offline");
+        await writeLocalSnapshot(cacheKey, next);
+        if (navigator.onLine) void refresh();
+        return created;
+      },
+      /*
+       * Drag-to-reschedule. The `edit` operation and its optimistic-concurrency
+       * guard have existed in the sync contract and the Postgres function since
+       * offline sync landed; this is the first client to emit one. Sending
+       * `targetVersion` is what lets the server reject a move that raced with a
+       * change from another device, which surfaces in the planner's sync review
+       * rather than silently overwriting.
+       */
+      async rescheduleItem(item, startAt, endAt) {
+        if (!data) return;
+        if (!navigator.onLine && !mobileConfig.features.offlineSync) {
+          setError("Offline schedule changes are not enabled in this build.");
+          setState("offline");
+          return;
+        }
+        const { mobileSchedulePayloadSchema } = await contracts();
+        const payload = mobileSchedulePayloadSchema.parse({
+          type: item.type,
+          title: item.title,
+          category: item.category ?? null,
+          locationLabel: item.locationLabel,
+          startAt,
+          endAt,
+          dueAt: item.dueAt,
+          timezone: item.timezone,
+          priority: item.priority,
+          flexibility: item.flexibility,
+          earliestStart: item.earliestStart,
+          latestEnd: item.latestEnd,
+          normalDurationMinutes: Math.max(
+            1,
+            Math.round(
+              (new Date(endAt).getTime() - new Date(startAt).getTime()) /
+                60_000,
+            ),
+          ),
+          minimumDurationMinutes: item.minimumDurationMinutes,
+          minimumChunkMinutes: item.minimumChunkMinutes,
+          canShorten: item.canShorten,
+          canSplit: item.canSplit,
+          canSkip: item.canSkip,
+          reminderMinutes: item.reminderMinutes ?? 10,
+        });
+        const operation: ScheduleOperation = {
+          clientOperationId: crypto.randomUUID(),
+          kind: "edit",
+          baseScheduleVersion: data.scheduleVersion,
+          targetId: item.id,
+          targetVersion: item.version,
+          payload,
+          createdAt: new Date().toISOString(),
+        };
+        await queueLocalOperation(operation);
+        const next = {
+          ...data,
+          calendar: data.calendar.map((value) =>
+            value.id === item.id
+              ? { ...value, startAt, endAt, localSyncStatus: "pending" }
+              : value,
+          ) as CalendarItem[],
+        };
+        dataRef.current = next;
+        setData(next);
         await writeLocalSnapshot(cacheKey, next);
         if (navigator.onLine) void refresh();
       },

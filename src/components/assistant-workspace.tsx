@@ -92,13 +92,16 @@ export function AssistantWorkspace({
     setError(null);
     setSuccess(null);
     try {
-      const nativeResult = extra.clarification
+      // The web surface has a server tier behind it, so a refused on-device
+      // interpretation is not worth surfacing here — it just falls through.
+      const native = extra.clarification
         ? null
         : await interpretNatively({
             command,
             timezone,
             contextVersion: 0,
           });
+      const nativeResult = native?.ok ? native.value : null;
       const r = await fetch("/api/assistant/interpret", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -233,7 +236,11 @@ export function AssistantWorkspace({
               detail matters.
             </p>
           </div>
-          <MoriMascot state={busy ? "loading" : "planning"} size="small" alt="" />
+          <MoriMascot
+            state={busy ? "loading" : "planning"}
+            size="small"
+            alt=""
+          />
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
           {[
@@ -326,7 +333,12 @@ export function AssistantWorkspace({
           role="status"
           className="assistant-state-message motion-success-enter flex gap-3 rounded-xl bg-[#d9fbe8] p-4 text-sm text-[var(--success)]"
         >
-          <MoriMascot state="success" size="small" alt="" className="shrink-0" />
+          <MoriMascot
+            state="success"
+            size="small"
+            alt=""
+            className="shrink-0"
+          />
           <Check className="size-5" />
           {success}
         </div>

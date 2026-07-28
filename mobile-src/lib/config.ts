@@ -21,6 +21,8 @@ export const mobileConfig = {
     nativeSpeech: import.meta.env.VITE_KAIROS_NATIVE_SPEECH !== "0",
     applePlanner: import.meta.env.VITE_KAIROS_APPLE_PLANNER !== "0",
     offlineSync: import.meta.env.VITE_KAIROS_OFFLINE_SYNC !== "0",
-    geminiFallback: import.meta.env.VITE_KAIROS_GEMINI_FALLBACK !== "0",
+    // No geminiFallback flag: interpretation on this client is Apple
+    // Intelligence then the deterministic parser, both on the device. The web
+    // app keeps its cloud tier and its own env var.
   },
 };

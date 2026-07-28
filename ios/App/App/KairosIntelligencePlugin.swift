@@ -200,6 +200,23 @@ enum SpeechStartError: Error {
     }
 }
 
+/// RMS of a capture buffer on a decibel curve, so the ring answers to ordinary
+/// speech instead of sitting near zero until someone shouts. -50 dBFS reads as
+/// silence and 0 dBFS as full deflection.
+private func normalizedLevel(_ buffer: AVAudioPCMBuffer) -> Double {
+    guard let channel = buffer.floatChannelData?[0] else { return 0 }
+    let count = Int(buffer.frameLength)
+    guard count > 0 else { return 0 }
+    var sum: Float = 0
+    for index in 0..<count {
+        let sample = channel[index]
+        sum += sample * sample
+    }
+    let rms = (sum / Float(count)).squareRoot()
+    let decibels = 20 * log10(max(rms, 1e-7))
+    return Double(min(1, max(0, (decibels + 50) / 50)))
+}
+
 @available(iOS 26.0, *)
 private final class ModernSpeechSession {
     private let analyzer: SpeechAnalyzer
@@ -209,11 +226,17 @@ private final class ModernSpeechSession {
     private var analysisTask: Task<Void, Never>?
     private var resultTask: Task<Void, Never>?
     private let onResult: @Sendable (String, Bool) -> Void
+    private let onLevel: @Sendable (Double) -> Void
     let localeIdentifier: String
 
-    init(locale: Locale, onResult: @escaping @Sendable (String, Bool) -> Void) {
+    init(
+        locale: Locale,
+        onResult: @escaping @Sendable (String, Bool) -> Void,
+        onLevel: @escaping @Sendable (Double) -> Void
+    ) {
         self.localeIdentifier = locale.identifier
         self.onResult = onResult
+        self.onLevel = onLevel
         transcriber = SpeechTranscriber(locale: locale, preset: .progressiveTranscription)
         analyzer = SpeechAnalyzer(
             modules: [transcriber],
@@ -259,7 +282,15 @@ private final class ModernSpeechSession {
             }
         }
         inputNode.installTap(onBus: 0, bufferSize: 1_024, format: format) { [weak self] buffer, _ in
-            self?.continuation?.yield(AnalyzerInput(buffer: buffer))
+            guard let self else { return }
+            // Measured before the buffer is handed over, never after. Once it
+            // has been yielded the analyzer owns it and may recycle its sample
+            // memory on another thread, so reading floatChannelData afterwards
+            // is a use-after-free — and this closure runs on the real-time
+            // audio thread, where that is a hard crash rather than bad data.
+            let level = normalizedLevel(buffer)
+            self.continuation?.yield(AnalyzerInput(buffer: buffer))
+            self.onLevel(level)
         }
         engine.prepare()
         try engine.start()
@@ -307,6 +338,7 @@ final class KairosIntelligencePlugin: CAPPlugin, CAPBridgedPlugin {
     private var modernSpeech: AnyObject?
     private var transcriptSequence = 0
     private var transcriptSessionId: String?
+    private var lastLevelAt: CFAbsoluteTime = 0
     private var backgroundReleaseWorkItem: DispatchWorkItem?
 
     #if canImport(FoundationModels)
@@ -518,13 +550,33 @@ final class KairosIntelligencePlugin: CAPPlugin, CAPBridgedPlugin {
                         let locale = requestedLocale.flatMap { requested in
                             supported.first(where: { $0.identifier == requested })
                         } ?? self.preferredLocale(from: supported)
-                        let session = ModernSpeechSession(locale: locale) { [weak self] text, isFinal in
-                            DispatchQueue.main.async {
-                                self?.emitTranscript(text: text, isFinal: isFinal)
+                        let session = ModernSpeechSession(
+                            locale: locale,
+                            onResult: { [weak self] text, isFinal in
+                                DispatchQueue.main.async {
+                                    self?.emitTranscript(text: text, isFinal: isFinal)
+                                }
+                            },
+                            onLevel: { [weak self] level in
+                                self?.emitLevel(level)
                             }
-                        }
+                        )
                         self.modernSpeech = session
                         try await session.start()
+                        /*
+                         * Starting can take seconds when the dictation model
+                         * has to install, and the recording sheet is on screen
+                         * for all of it — so Cancel can land before this line.
+                         * A cleared session id means it did: the engine that
+                         * just started belongs to nobody, and without this it
+                         * would hold the microphone with no way to stop it.
+                         */
+                        guard self.transcriptSessionId == sessionId else {
+                            await session.stop(cancelled: true)
+                            if self.modernSpeech === session { self.modernSpeech = nil }
+                            call.resolve(["sessionId": sessionId, "cancelled": true])
+                            return
+                        }
                         call.resolve(["sessionId": sessionId, "locale": session.localeIdentifier, "engine": "speech-analyzer"])
                     } else {
                         try self.startLegacySpeech(localeIdentifier: requestedLocale)
@@ -561,8 +613,22 @@ final class KairosIntelligencePlugin: CAPPlugin, CAPBridgedPlugin {
     @available(iOS 26.0, *)
     private func planner() -> LanguageModelSession {
         if let plannerSession { return plannerSession }
+        // The one-action-per-clause rule was stated and still got ignored: the
+        // model would summarise a compound request and emit only its first
+        // item. Worked examples hold it far better than the instruction alone,
+        // so the count is made explicit and shown in both languages.
         let instructions = """
-        You are Kairos, an on-device scheduling planner. Understand English and Taglish. Inspect local schedule and preferences using read-only tools. Preserve compound requests as separate actions. Use ISO 8601 timestamps with offsets. Never write data, send messages, invent locations, or hide assumptions. Fixed events and deadlines are fixed; ordinary tasks are flexible. Ask one concise clarification when a safe proposal is impossible.
+        You are Mori, an on-device scheduling planner. Understand English and Taglish. Inspect local schedule and preferences using read-only tools. Use ISO 8601 timestamps with offsets. Never write data, send messages, invent locations, or hide assumptions. Fixed events and deadlines are fixed; ordinary tasks are flexible. Ask one concise clarification when a safe proposal is impossible.
+
+        Every separate thing the user names is its own action. Count the things they listed and return exactly that many actions. Never merge them, never drop the ones after the first, and never keep only the one you find most important.
+
+        Example: "Circuits 1 at 9-11:30am, lunch at 12 to 1pm, gym at 1:30 to 3pm" names three things, so return three actions — Circuits 1 from 09:00 to 11:30, Lunch from 12:00 to 13:00, and Gym from 13:30 to 15:00.
+
+        Example: "gym bukas ng 6am tapos dinner ng 7pm" names two things, so return two actions, both on tomorrow's date.
+
+        Example: "move my dentist appointment" names one thing and is missing its new time, so return a clarification instead of guessing.
+
+        A time range stating the meridiem once applies it to both ends: "9-11:30am" is 09:00 to 11:30, and "12 to 1pm" is 12:00 to 13:00.
         """
         let session = LanguageModelSession(
             tools: [
@@ -667,8 +733,11 @@ final class KairosIntelligencePlugin: CAPPlugin, CAPBridgedPlugin {
         let input = engine.inputNode
         let format = input.outputFormat(forBus: 0)
         guard format.sampleRate > 0 else { throw SpeechStartError.noAudioInput }
-        input.installTap(onBus: 0, bufferSize: 1_024, format: format) { buffer, _ in
+        input.installTap(onBus: 0, bufferSize: 1_024, format: format) { [weak self] buffer, _ in
+            // Same ordering rule as the modern path: measure, then hand off.
+            let level = normalizedLevel(buffer)
             request.append(buffer)
+            self?.emitLevel(level)
         }
         legacyTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
             if let result {
@@ -719,6 +788,27 @@ final class KairosIntelligencePlugin: CAPPlugin, CAPBridgedPlugin {
         legacyTask = nil
         legacyEngine = nil
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
+    /// Capture buffers arrive around 43 times a second, which is far more than
+    /// a ring animation needs and more than the bridge should carry. Throttling
+    /// to ~20 Hz keeps the motion smooth while halving the traffic, and the
+    /// event is kept separate from `transcript` so metering can never change
+    /// the cadence partial results are delivered at.
+    private func emitLevel(_ level: Double) {
+        // Called from the audio tap, so nothing here may touch plugin state
+        // directly: the hop happens first and the throttle runs on the main
+        // thread, where `transcriptSessionId` is also written.
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let sessionId = self.transcriptSessionId else { return }
+            let now = CFAbsoluteTimeGetCurrent()
+            guard now - self.lastLevelAt >= 0.05 else { return }
+            self.lastLevelAt = now
+            self.notifyListeners("level", data: [
+                "sessionId": sessionId,
+                "level": level
+            ])
+        }
     }
 
     private func emitTranscript(text: String, isFinal: Bool) {

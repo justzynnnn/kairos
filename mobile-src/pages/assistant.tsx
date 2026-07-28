@@ -19,17 +19,17 @@ import {
   readAssistantHistory,
 } from "@/lib/mobile/store";
 import {
-  buildScheduleProposal,
+  planScheduleProposal,
   SchedulingValidationError,
+  type RejectedAction,
 } from "@/lib/scheduling/engine";
 import { deterministicInterpret } from "@/lib/scheduling/fallback";
-import {
-  schedulingIntentSchema,
-  type ProposalItem,
-  type SchedulingIntent,
-} from "@/lib/scheduling/schema";
-import { apiRequest } from "../lib/api";
+import type { ProposalItem, SchedulingIntent } from "@/lib/scheduling/schema";
+import type { CalendarItem } from "@/lib/types";
+import Toast from "../components/toast";
+import VoiceSheet from "../components/voice-sheet";
 import { useAuth } from "../lib/auth";
+import { readAutoMode } from "../lib/auto-mode";
 import { mobileConfig } from "../lib/config";
 import { useMobileData } from "../lib/data";
 import {
@@ -37,7 +37,7 @@ import {
   peekAssistantDraft,
   subscribeToAssistantDraft,
 } from "../lib/draft";
-import { Mic, Square } from "../lib/icons";
+import { Mic } from "../lib/icons";
 import { metricNow, recordMetric } from "../lib/metrics";
 
 type HistoryEntry = {
@@ -45,6 +45,8 @@ type HistoryEntry = {
   role: "user" | "assistant";
   text: string;
 };
+
+type Provider = "apple-intelligence" | "deterministic";
 
 const modelLabels: Record<
   NativeCapabilities["foundationModel"]["state"],
@@ -56,49 +58,32 @@ const modelLabels: Record<
   unsupported: "On-device planning",
 };
 
-function localInputValue(date: Date) {
-  const offset = date.getTimezoneOffset() * 60_000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
-}
-
-function defaultManualTimes() {
-  const start = new Date();
-  start.setMinutes(0, 0, 0);
-  start.setHours(start.getHours() + 1);
-  return {
-    start: localInputValue(start),
-    end: localInputValue(new Date(start.getTime() + 60 * 60_000)),
-  };
-}
-
 export default function Assistant() {
   const auth = useAuth();
-  const { data, confirmCreates } = useMobileData();
+  const { data, confirmCreates, queueItemAction } = useMobileData();
   // Claimed during the first render rather than in an effect, so the handoff
   // from Home's quick capture is already in the box on the first paint.
   const [draft] = useState(peekAssistantDraft);
   const [command, setCommand] = useState(draft?.text ?? "");
   const [recording, setRecording] = useState(false);
-  const [reviewingTranscript, setReviewingTranscript] = useState(false);
+  const [startingVoice, setStartingVoice] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [question, setQuestion] = useState<string | null>(null);
   const [proposal, setProposal] = useState<ProposalItem[] | null>(null);
+  const [rejected, setRejected] = useState<RejectedAction[]>([]);
   const [summary, setSummary] = useState("");
   const [assumptions, setAssumptions] = useState<string[]>([]);
-  const [provider, setProvider] = useState<
-    "apple-intelligence" | "deterministic" | "gemini" | null
-  >(null);
+  const [provider, setProvider] = useState<Provider | null>(null);
   const [capabilities, setCapabilities] = useState<NativeCapabilities | null>(
     null,
   );
   const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [cloudConsent, setCloudConsent] = useState(false);
-  const [manualOpen, setManualOpen] = useState(false);
-  const [manualTitle, setManualTitle] = useState("");
-  const [manualStart, setManualStart] = useState("");
-  const [manualEnd, setManualEnd] = useState("");
+  const [autoMode, setAutoMode] = useState(false);
+  const [undo, setUndo] = useState<CalendarItem[] | null>(null);
   const transcriptionStartedAt = useRef<number | null>(null);
+  const commandBeforeVoice = useRef("");
   const accessTokenRef = useRef(auth.accessToken);
   const modernSpeechRef = useRef(false);
 
@@ -107,13 +92,38 @@ export default function Assistant() {
     modernSpeechRef.current = Boolean(capabilities?.speech.modern);
   }, [auth.accessToken, capabilities?.speech.modern]);
 
+  const timezone = data?.viewer.timezone ?? "Asia/Manila";
+  const scheduleVersion = data?.scheduleVersion ?? 0;
+  const preferences = data?.preferences;
+  const activeStart = data?.viewer.activeStart;
+  const activeEnd = data?.viewer.activeEnd;
+  const calendar = data?.calendar;
+
+  /*
+   * Keyed on the schedule's version rather than on the bootstrap object.
+   * `data` is replaced by every background refresh, and this used to serialise
+   * three hundred items and push them across the bridge each time — work that
+   * only matters when the schedule itself has changed.
+   *
+   * The window is narrowed to the fortnight either side of now for the same
+   * reason: the model reads this to find free time and spot conflicts, and
+   * nothing it decides depends on an event six weeks out.
+   */
   const context = useMemo(() => {
-    if (!data) return null;
+    if (!calendar || !preferences) return null;
+    const from = Date.now() - 14 * 86_400_000;
+    const to = Date.now() + 14 * 86_400_000;
     return {
       schedule: JSON.stringify(
-        data.calendar
-          .filter((item) => item.status === "scheduled")
-          .slice(0, 300)
+        calendar
+          .filter((item) => {
+            if (item.status !== "scheduled") return false;
+            const at = item.startAt ?? item.dueAt;
+            if (!at) return false;
+            const time = new Date(at).getTime();
+            return time >= from && time <= to;
+          })
+          .slice(0, 200)
           .map((item) => ({
             title: item.title,
             type: item.type,
@@ -124,30 +134,34 @@ export default function Assistant() {
           })),
       ),
       preferences: JSON.stringify({
-        timezone: data.viewer.timezone,
-        activeHours: {
-          start: data.viewer.activeStart,
-          end: data.viewer.activeEnd,
-        },
-        categories: data.preferences,
+        timezone,
+        activeHours: { start: activeStart, end: activeEnd },
+        categories: preferences,
       }),
     };
-  }, [data]);
+    // `calendar` is intentionally absent: a new array arrives on every refresh,
+    // and scheduleVersion is what actually tracks a change to its contents.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scheduleVersion, timezone, preferences, activeStart, activeEnd]);
 
   useEffect(() => {
     let active = true;
     let listener: Awaited<ReturnType<typeof subscribeToTranscript>> = null;
-    void Promise.all([getNativeCapabilities(), readAssistantHistory()]).then(
-      ([available, entries]) => {
-        if (!active) return;
-        setCapabilities(available);
-        setHistory(entries);
-      },
-    );
+    void Promise.all([
+      getNativeCapabilities(),
+      readAssistantHistory(),
+      readAutoMode(),
+    ]).then(([available, entries, auto]) => {
+      if (!active) return;
+      setCapabilities(available);
+      setHistory(entries);
+      setAutoMode(auto);
+    });
     if (mobileConfig.features.applePlanner) void prepareNativePlanner();
     void subscribeToTranscript((event) => {
       if (!active) return;
       setCommand(event.text);
+      setStartingVoice(false);
       if (accessTokenRef.current && transcriptionStartedAt.current !== null)
         void recordMetric(
           accessTokenRef.current,
@@ -155,12 +169,10 @@ export default function Assistant() {
           metricNow() - transcriptionStartedAt.current,
           { capability: modernSpeechRef.current ? "modern" : "legacy" },
         );
-      if (event.isFinal) {
-        setRecording(false);
-        setReviewingTranscript(true);
-      }
+      if (event.isFinal) setRecording(false);
     }).then((value) => {
       listener = value;
+      if (!active) void value?.remove();
     });
     return () => {
       active = false;
@@ -197,29 +209,25 @@ export default function Assistant() {
     await appendAssistantHistory(entry);
   }
 
-  function showIntent(intent: SchedulingIntent, nextProvider: typeof provider) {
+  function clearResult() {
+    setProposal(null);
+    setRejected([]);
+    setQuestion(null);
+    setError(null);
+  }
+
+  async function showIntent(intent: SchedulingIntent, next: Provider) {
     if (!data) return;
+    setProvider(next);
     if (intent.ambiguity) {
       setQuestion(intent.essential_question || "What detail should I use?");
       setProposal(null);
-      setProvider(nextProvider);
+      setRejected([]);
       return;
     }
+    let plan;
     try {
-      const items = buildScheduleProposal(
-        intent,
-        data.calendar,
-        data.preferences,
-      );
-      setProposal(items);
-      setSummary(intent.summary);
-      setAssumptions([
-        ...intent.assumptions,
-        ...items.flatMap((item) => item.assumptions),
-      ]);
-      setQuestion(null);
-      setProvider(nextProvider);
-      void remember("assistant", intent.summary);
+      plan = planScheduleProposal(intent, data.calendar, data.preferences);
     } catch (reason) {
       setQuestion(
         reason instanceof SchedulingValidationError
@@ -227,31 +235,68 @@ export default function Assistant() {
           : "I need another detail before this can be placed safely.",
       );
       setProposal(null);
+      setRejected([]);
+      return;
     }
+    if (!plan.items.length) {
+      setQuestion(
+        plan.rejected[0]?.reason ??
+          "I could not place anything from that request.",
+      );
+      setProposal(null);
+      setRejected(plan.rejected);
+      return;
+    }
+    setQuestion(null);
+    setSummary(intent.summary);
+    setAssumptions([
+      ...intent.assumptions,
+      ...plan.items.flatMap((item) => item.assumptions),
+    ]);
+    void remember("assistant", intent.summary);
+
+    /*
+     * Auto mode skips the card, but only when there is nothing left to decide.
+     * An action the engine could not place is a question the user has to
+     * answer, and quietly dropping it because they opted out of reviewing is
+     * the one failure this feature cannot have.
+     */
+    if (autoMode && !plan.rejected.length) {
+      setProposal(null);
+      setRejected([]);
+      const created = await confirmCreates(plan.items);
+      setCommand("");
+      if (created.length) setUndo(created);
+      return;
+    }
+    setProposal(plan.items);
+    setRejected(plan.rejected);
   }
 
   async function interpret(startedAt: number, text = command) {
     const value = text.trim();
     if (!data || value.length < 2) return;
     setBusy(true);
-    setError(null);
-    setQuestion(null);
-    setReviewingTranscript(false);
+    clearResult();
     await remember("user", value);
+
+    // Apple Intelligence first, then the deterministic parser. The cascade is
+    // automatic: the tier that answered is reported afterwards, never chosen.
     let nativeFailure: string | null = null;
-    try {
-      const native = mobileConfig.features.applePlanner
-        ? await interpretNatively({
-            command: value,
-            timezone: data.viewer.timezone,
-            contextVersion: data.scheduleVersion,
-            history: history
-              .slice(-8)
-              .map((entry) => entry.role + ": " + entry.text),
-          })
-        : null;
-      if (native) {
-        showIntent(plannerResultToIntent(native), "apple-intelligence");
+    if (mobileConfig.features.applePlanner) {
+      const native = await interpretNatively({
+        command: value,
+        timezone,
+        contextVersion: scheduleVersion,
+        history: history
+          .slice(-8)
+          .map((entry) => entry.role + ": " + entry.text),
+      });
+      if (native.ok) {
+        await showIntent(
+          plannerResultToIntent(native.value),
+          "apple-intelligence",
+        );
         if (auth.accessToken)
           void recordMetric(
             auth.accessToken,
@@ -262,15 +307,17 @@ export default function Assistant() {
         setBusy(false);
         return;
       }
-    } catch (reason) {
-      nativeFailure =
-        reason instanceof Error
-          ? reason.message
-          : "Apple Intelligence could not safely interpret this request.";
+      nativeFailure = native.message;
     }
-    const deterministic = deterministicInterpret(value, new Date());
+
+    const deterministic = deterministicInterpret(
+      value,
+      new Date(),
+      undefined,
+      timezone,
+    );
     if (deterministic) {
-      showIntent(deterministic, "deterministic");
+      await showIntent(deterministic, "deterministic");
       if (auth.accessToken)
         void recordMetric(
           auth.accessToken,
@@ -279,52 +326,35 @@ export default function Assistant() {
           { capability: "deterministic" },
         );
     } else {
-      setError(nativeFailure);
-      if (mobileConfig.features.geminiFallback) setCloudConsent(true);
-      else openManual();
+      // Both tiers declined. Everything stays on this phone, so the only way
+      // forward is a clearer sentence.
+      setQuestion(
+        "I could not work out the times in that. Try naming each item with its time, like “gym at 6am, lunch at 12nn”.",
+      );
+      if (nativeFailure) setError(nativeFailure);
     }
     setBusy(false);
   }
 
-  async function askGemini() {
-    if (!auth.accessToken) return;
-    setCloudConsent(false);
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await apiRequest<{ intent: unknown }>(
-        "/api/mobile/assistant/cloud-interpret",
-        auth.accessToken,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            command,
-            consentGranted: true,
-          }),
-        },
-      );
-      showIntent(schedulingIntentSchema.parse(result.intent), "gemini");
-    } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : "Gemini fallback is unavailable.",
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function startVoice() {
     if (!mobileConfig.features.nativeSpeech) return;
-    setError(null);
+    // The sheet opens before the native call rather than after it. Starting a
+    // session means a permission check, an audio-session activation and
+    // sometimes a model download, and a button that does nothing for a second
+    // reads as a broken button.
+    setVoiceError(null);
+    setStartingVoice(true);
+    setRecording(true);
+    // Partial results overwrite the box as they arrive, so whatever was typed
+    // before the mic opened has to be kept somewhere to survive a cancel.
+    commandBeforeVoice.current = command;
     try {
       await NativeSpeech.start(capabilities?.speech.selectedLocale);
       transcriptionStartedAt.current = metricNow();
-      setRecording(true);
-      setReviewingTranscript(false);
+      setStartingVoice(false);
     } catch (reason) {
-      setError(
+      setStartingVoice(false);
+      setVoiceError(
         reason instanceof Error
           ? reason.message
           : "Private transcription is unavailable.",
@@ -332,51 +362,32 @@ export default function Assistant() {
     }
   }
 
+  async function stopVoice(cancelled: boolean) {
+    setRecording(false);
+    setStartingVoice(false);
+    try {
+      await (cancelled ? NativeSpeech.cancel() : NativeSpeech.stop());
+    } catch {
+      // The sheet is already closed; a failed teardown has nothing to add.
+    }
+    // Cancel means "forget what I just said", not "delete what I had written".
+    if (cancelled) setCommand(commandBeforeVoice.current);
+  }
+
+  async function undoLastAdd() {
+    const items = undo;
+    if (!items) return;
+    setUndo(null);
+    for (const item of items) await queueItemAction(item, "cancel");
+  }
+
   async function refreshCapabilities() {
     setCapabilities(await getNativeCapabilities());
   }
 
   async function clearHistory() {
-    await Promise.all([clearAssistantHistory(), clearNativePlannerHistory()]);
     setHistory([]);
-  }
-
-  function openManual() {
-    const times = defaultManualTimes();
-    setManualTitle(command.trim() || "New schedule item");
-    setManualStart(times.start);
-    setManualEnd(times.end);
-    setCloudConsent(false);
-    setManualOpen(true);
-  }
-
-  async function saveManual() {
-    if (!data || !manualTitle.trim()) return;
-    const start = new Date(manualStart);
-    const end = new Date(manualEnd);
-    if (
-      Number.isNaN(start.getTime()) ||
-      Number.isNaN(end.getTime()) ||
-      end <= start
-    ) {
-      setError("Choose an end time after the start time.");
-      return;
-    }
-    await confirmCreates([
-      {
-        type: "event",
-        title: manualTitle.trim(),
-        startAt: start.toISOString(),
-        endAt: end.toISOString(),
-        dueAt: null,
-        timezone: data.viewer.timezone,
-        flexibility: "flexible",
-        priority: 3,
-        reminderMinutes: 10,
-      },
-    ]);
-    setManualOpen(false);
-    setCommand("");
+    await Promise.all([clearAssistantHistory(), clearNativePlannerHistory()]);
   }
 
   const speechBlocked =
@@ -389,8 +400,9 @@ export default function Assistant() {
         <p className="eyebrow">On device</p>
         <h1>Plan with Mori</h1>
         <p className="supporting">
-          Speak or type in English or Taglish. Nothing changes until you
-          confirm.
+          {autoMode
+            ? "Speak or type in English or Taglish. Items go straight to your planner."
+            : "Speak or type in English or Taglish. Nothing changes until you confirm."}
         </p>
       </header>
       <section className="panel panel-pad page">
@@ -445,19 +457,9 @@ export default function Assistant() {
             value={command}
             maxLength={2_000}
             onChange={(event) => setCommand(event.target.value)}
-            placeholder="Halimbawa: Block two hours for my report before Friday"
+            placeholder="Halimbawa: Circuits 1 at 9-11:30am, lunch at 12nn, gym at 1:30 to 3pm"
           />
         </label>
-        {recording && (
-          <div className="notice">
-            Listening… words appear above as you speak.
-          </div>
-        )}
-        {reviewingTranscript && (
-          <div className="success">
-            Transcript ready. Edit anything above, then review the proposal.
-          </div>
-        )}
         <div className="actions">
           <button
             type="button"
@@ -465,47 +467,22 @@ export default function Assistant() {
             disabled={
               busy || speechBlocked || !mobileConfig.features.nativeSpeech
             }
-            onClick={() =>
-              void (recording
-                ? NativeSpeech.stop().then(() => {
-                    setRecording(false);
-                    setReviewingTranscript(true);
-                  })
-                : startVoice())
-            }
-            aria-label={recording ? "Stop recording" : "Record"}
+            onClick={() => void startVoice()}
           >
-            {recording ? (
-              <Square size={18} strokeWidth={2.5} aria-hidden />
-            ) : (
-              <Mic size={18} strokeWidth={2.5} aria-hidden />
-            )}
-            {recording ? "Stop" : "Record"}
+            <Mic size={18} strokeWidth={2.5} aria-hidden />
+            Record
           </button>
-          {recording && (
-            <button
-              type="button"
-              className="secondary"
-              onClick={() =>
-                void NativeSpeech.cancel().then(() => {
-                  setRecording(false);
-                  setReviewingTranscript(false);
-                })
-              }
-            >
-              Cancel
-            </button>
-          )}
           <button
             type="button"
             className="primary"
             disabled={busy || command.trim().length < 2}
             onClick={(event) => void interpret(event.timeStamp)}
           >
-            {busy ? "Planning…" : "Review proposal"}
-          </button>
-          <button type="button" className="secondary" onClick={openManual}>
-            Schedule manually
+            {busy
+              ? "Planning…"
+              : autoMode
+                ? "Add to planner"
+                : "Review proposal"}
           </button>
         </div>
       </section>
@@ -515,7 +492,7 @@ export default function Assistant() {
           <p className="eyebrow">One essential detail</p>
           <h2>{question}</h2>
           <p className="supporting">
-            Add the answer to your request above and review again.
+            Add the answer to your request above and try again.
           </p>
         </section>
       )}
@@ -527,9 +504,7 @@ export default function Assistant() {
             <span className="badge">
               {provider === "apple-intelligence"
                 ? "On device"
-                : provider === "gemini"
-                  ? "Filtered Gemini"
-                  : "Deterministic"}
+                : "Deterministic"}
             </span>
           </div>
           {proposal.map((item, index) => (
@@ -558,6 +533,21 @@ export default function Assistant() {
               </p>
             </article>
           ))}
+          {/*
+            An item the engine could not place is reported rather than dropped.
+            The rest of a compound request is still worth confirming, but the
+            user has to be told which part of what they said did not survive.
+          */}
+          {rejected.length > 0 && (
+            <div className="notice">
+              <strong>Not placed</strong>
+              <ul>
+                {rejected.map((entry) => (
+                  <li key={entry.title}>{entry.reason}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           {assumptions.length > 0 && (
             <div className="notice">
               <strong>Visible assumptions</strong>
@@ -569,14 +559,14 @@ export default function Assistant() {
             </div>
           )}
           <div className="actions">
-            <button className="secondary" onClick={() => setProposal(null)}>
+            <button className="secondary" onClick={clearResult}>
               Discard
             </button>
             <button
               className="primary"
               onClick={() =>
                 void confirmCreates(proposal).then(() => {
-                  setProposal(null);
+                  clearResult();
                   setCommand("");
                 })
               }
@@ -586,89 +576,22 @@ export default function Assistant() {
           </div>
         </section>
       )}
-      {cloudConsent && (
-        <div className="modal-backdrop" role="presentation">
-          <section
-            className="modal page"
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="cloud-title"
-          >
-            <div>
-              <p className="eyebrow">Optional cloud fallback</p>
-              <h2 id="cloud-title">Send a filtered request to Gemini?</h2>
-              <p className="supporting">
-                Mori sends this command, relevant free/busy times, active
-                hours, and minimum preferences. Unrelated titles become “Busy.”
-                Audio, locations, messages, contacts, files, and the rest of
-                your schedule are not sent.
-              </p>
-            </div>
-            <div className="actions">
-              <button className="secondary" onClick={openManual}>
-                Keep local and schedule manually
-              </button>
-              <button className="primary" onClick={() => void askGemini()}>
-                Send filtered request
-              </button>
-            </div>
-          </section>
-        </div>
+      {recording && (
+        <VoiceSheet
+          transcript={command}
+          starting={startingVoice}
+          error={voiceError}
+          onCancel={() => void stopVoice(true)}
+          onDone={() => void stopVoice(false)}
+        />
       )}
-      {manualOpen && (
-        <div className="modal-backdrop" role="presentation">
-          <section
-            className="modal page"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="manual-title"
-          >
-            <div>
-              <p className="eyebrow">Manual scheduling</p>
-              <h2 id="manual-title">Add this on your phone</h2>
-              <p className="supporting">
-                Nothing is sent to an AI provider. Times use this phone and will
-                be validated again in{" "}
-                {data?.viewer.timezone ?? "your account timezone"} when synced.
-              </p>
-            </div>
-            <label className="field">
-              Title
-              <input
-                value={manualTitle}
-                onChange={(event) => setManualTitle(event.target.value)}
-                maxLength={160}
-              />
-            </label>
-            <label className="field">
-              Starts
-              <input
-                type="datetime-local"
-                value={manualStart}
-                onChange={(event) => setManualStart(event.target.value)}
-              />
-            </label>
-            <label className="field">
-              Ends
-              <input
-                type="datetime-local"
-                value={manualEnd}
-                onChange={(event) => setManualEnd(event.target.value)}
-              />
-            </label>
-            <div className="actions">
-              <button
-                className="secondary"
-                onClick={() => setManualOpen(false)}
-              >
-                Cancel
-              </button>
-              <button className="primary" onClick={() => void saveManual()}>
-                Add on this phone
-              </button>
-            </div>
-          </section>
-        </div>
+      {undo && (
+        <Toast
+          message={`${undo.length} item${undo.length === 1 ? "" : "s"} added to your planner.`}
+          actionLabel="Undo"
+          onAction={() => void undoLastAdd()}
+          onDismiss={() => setUndo(null)}
+        />
       )}
     </main>
   );

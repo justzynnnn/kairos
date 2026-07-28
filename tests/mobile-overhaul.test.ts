@@ -482,13 +482,59 @@ describe("phase 5 capture and onboarding", () => {
   const app = fs.readFileSync("mobile-src/app.tsx", "utf8");
   const draft = fs.readFileSync("mobile-src/lib/draft.ts", "utf8");
 
-  it("names the assistant controls the way the web app does", () => {
-    expect(assistant).toContain('{recording ? "Stop" : "Record"}');
-    expect(assistant).toContain('{busy ? "Planning…" : "Review proposal"}');
+  it("offers exactly two actions on the Mori page", () => {
+    // Record and one primary. Manual entry moved to the planner's empty slots,
+    // and stopping a recording is now the voice sheet's job.
     expect(assistant).toContain("<Mic size={18}");
-    expect(assistant).toContain("<Square size={18}");
-    expect(assistant).toContain("Schedule manually");
+    expect(assistant).toContain("Record");
+    expect(assistant).toContain('? "Add to planner"');
+    expect(assistant).toContain(': "Review proposal"');
+    expect(assistant).not.toContain("Schedule manually");
     expect(assistant).not.toContain('"Dictate"');
+    expect(assistant).not.toContain("<Square");
+  });
+
+  it("keeps the on-device cascade free of a cloud tier", () => {
+    // Apple Intelligence, then the deterministic parser. Nothing leaves the
+    // phone, so there is no consent prompt to answer and no provider to pick.
+    expect(assistant).toContain("interpretNatively");
+    expect(assistant).toContain("deterministicInterpret");
+    expect(assistant).not.toContain("gemini");
+    expect(assistant).not.toContain("Gemini");
+    expect(assistant).not.toContain("cloud-interpret");
+    expect(assistant).not.toContain("consentGranted");
+  });
+
+  it("routes recording through a dedicated voice surface", () => {
+    const voice = fs.readFileSync(
+      "mobile-src/components/voice-sheet.tsx",
+      "utf8",
+    );
+    expect(assistant).toContain("<VoiceSheet");
+    // The sheet opens before the native call resolves, so the button responds
+    // on the tap rather than after permission and audio-session setup.
+    expect(assistant.indexOf("setRecording(true)")).toBeGreaterThan(-1);
+    expect(assistant.indexOf("setRecording(true)")).toBeLessThan(
+      assistant.indexOf("await NativeSpeech.start"),
+    );
+    // Cancelling gives back what was typed before the mic opened.
+    expect(assistant).toContain("setCommand(commandBeforeVoice.current)");
+    expect(voice).toContain("subscribeToAudioLevel");
+    // Amplitude drives a custom property from a rAF loop; it must never become
+    // twenty React renders a second.
+    expect(voice).toContain('setProperty("--level"');
+    expect(voice).toContain("requestAnimationFrame");
+    expect(voice).not.toContain("setLevel");
+  });
+
+  it("gates unattended scheduling behind an explicit setting", () => {
+    const profile = fs.readFileSync("mobile-src/pages/profile.tsx", "utf8");
+    expect(profile).toContain("Add items without reviewing");
+    expect(profile).toContain("writeAutoMode");
+    // Auto mode never swallows an item the engine could not place.
+    expect(assistant).toContain("if (autoMode && !plan.rejected.length)");
+    expect(assistant).toContain("<Toast");
+    expect(assistant).toContain('actionLabel="Undo"');
   });
 
   it("hands a Home capture to the Kairos tab exactly once", () => {
@@ -523,8 +569,13 @@ describe("phase 5 capture and onboarding", () => {
     expect(app).toContain("getSecureValue(onboardedKey)");
     expect(app).toContain('setSecureValue(onboardedKey, "1")');
     expect(app).toContain("<Onboarding");
-    // The shell must not paint before the flag is known.
-    expect(app).toContain("signedIn && onboarded === null");
+    // The shell must not paint before the flag is known — but the data layer
+    // mounts first, so the cached snapshot loads while the flag is still being
+    // read rather than after it.
+    expect(app).toContain("onboarded === null ? (\n          <LoadingPage />");
+    expect(app.indexOf("<DataProvider>")).toBeLessThan(
+      app.indexOf("onboarded === null ?"),
+    );
     expect(onboarding).toContain("Welcome");
     expect(onboarding).toContain('method: "PUT"');
     expect(onboarding).toContain("/api/mobile/settings");

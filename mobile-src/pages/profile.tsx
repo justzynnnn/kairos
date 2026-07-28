@@ -15,6 +15,7 @@ import {
 import Sheet from "../components/sheet";
 import { apiRequest } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { readAutoMode, writeAutoMode } from "../lib/auto-mode";
 import { useMobileData } from "../lib/data";
 import { ChevronRight, Plus, RefreshCw, Trash2 } from "../lib/icons";
 import { setDiagnosticsEnabled } from "../lib/metrics";
@@ -140,6 +141,7 @@ export default function Profile() {
   >(null);
   const [pending, setPending] = useState(0);
   const [diagnostics, setDiagnostics] = useState(false);
+  const [autoMode, setAutoMode] = useState(false);
   const cacheKey = auth.user ? "profile:" + auth.user.id : "profile";
 
   const persist = useCallback(
@@ -200,6 +202,7 @@ export default function Profile() {
     void readLocalSnapshot<boolean>("diagnostics-enabled").then((value) =>
       setDiagnostics(value ?? false),
     );
+    void readAutoMode().then(setAutoMode);
   }, []);
 
   const countPending = useCallback(
@@ -622,6 +625,33 @@ export default function Profile() {
           <RefreshCw size={18} strokeWidth={2.5} aria-hidden />
           {state === "refreshing" ? "Syncing…" : "Sync now"}
         </button>
+      </section>
+
+      {/*
+        Device-local, like the diagnostics opt-in below it. Letting Mori write
+        the schedule unattended is a judgement about this phone's interpretation
+        of what you say, so it does not follow the account onto a shared device.
+      */}
+      <section className="panel panel-pad">
+        <p className="eyebrow">Scheduling</p>
+        <label className="row settings-row">
+          <div>
+            <p className="row-title">Add items without reviewing</p>
+            <p className="row-meta">
+              Mori places what it understands straight into your planner. You
+              can undo it right after, and anything ambiguous still asks first.
+            </p>
+          </div>
+          <input
+            type="checkbox"
+            checked={autoMode}
+            onChange={(event) => {
+              const value = event.target.checked;
+              setAutoMode(value);
+              void writeAutoMode(value).catch(() => setAutoMode(!value));
+            }}
+          />
+        </label>
       </section>
 
       <section className="panel panel-pad">

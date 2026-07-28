@@ -26,6 +26,12 @@ export const transcriptEventSchema = z.object({
   isFinal: z.boolean(),
 });
 
+/** Normalised microphone amplitude, emitted at ~20 Hz while recording. */
+export const levelEventSchema = z.object({
+  sessionId: z.string().uuid(),
+  level: z.number().min(0).max(1),
+});
+
 const nativeActionSchema = z.object({
   kind: z.enum(["event", "task", "deadline", "preparation"]),
   title: z.string().trim().min(1).max(160),
@@ -192,6 +198,7 @@ export const syncConflictSchema = z.object({
 
 export type NativeCapabilities = z.infer<typeof nativeCapabilitiesSchema>;
 export type TranscriptEvent = z.infer<typeof transcriptEventSchema>;
+export type LevelEvent = z.infer<typeof levelEventSchema>;
 export type NativePlannerResult = z.infer<typeof nativePlannerResultSchema>;
 export type ScheduleOperation = z.infer<typeof scheduleOperationSchema>;
 export type SyncConflict = z.infer<typeof syncConflictSchema>;

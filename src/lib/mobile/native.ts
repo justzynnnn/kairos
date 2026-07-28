@@ -6,9 +6,11 @@ import {
   type PluginListenerHandle,
 } from "@capacitor/core";
 import {
+  levelEventSchema,
   nativeCapabilitiesSchema,
   nativePlannerResultSchema,
   transcriptEventSchema,
+  type LevelEvent,
   type NativeCapabilities,
   type NativePlannerResult,
   type TranscriptEvent,
@@ -35,7 +37,7 @@ type IntelligencePlugin = {
   cancelTranscription(): Promise<void>;
   clearHistory(): Promise<void>;
   addListener(
-    eventName: "transcript",
+    eventName: "transcript" | "level",
     listener: (event: unknown) => void,
   ): Promise<PluginListenerHandle>;
 };
@@ -81,20 +83,53 @@ export async function updateNativePlannerContext(options: {
   await plugin.updateContext(options);
 }
 
+/**
+ * Why the on-device tier did not answer. The Swift side rejects with real
+ * codes — MODEL_UNAVAILABLE, MODEL_RESPONSE_INVALID, MODEL_UNSUPPORTED — and
+ * discarding them was hiding the difference between "this phone cannot run
+ * Apple Intelligence" and "the model returned something unusable", which are
+ * the two cases a user needs told apart.
+ */
+export type NativeInterpretation =
+  | { ok: true; value: NativePlannerResult }
+  | { ok: false; code: string; message: string };
+
 export async function interpretNatively(options: {
   command: string;
   timezone: string;
   contextVersion: number;
   history?: string[];
-}): Promise<NativePlannerResult | null> {
-  if (!nativeIntelligenceAvailable()) return null;
+}): Promise<NativeInterpretation> {
+  if (!nativeIntelligenceAvailable())
+    return {
+      ok: false,
+      code: "NOT_NATIVE",
+      message: "On-device planning is available in the Mori iOS app.",
+    };
+  let raw: unknown;
   try {
-    return nativePlannerResultSchema.parse(
-      await plugin.interpret({ ...options, history: options.history ?? [] }),
-    );
-  } catch {
-    return null;
+    raw = await plugin.interpret({
+      ...options,
+      history: options.history ?? [],
+    });
+  } catch (reason) {
+    const error = reason as { code?: string; message?: string };
+    return {
+      ok: false,
+      code: error?.code ?? "MODEL_FAILED",
+      message:
+        error?.message ??
+        "Apple Intelligence could not interpret that request.",
+    };
   }
+  const parsed = nativePlannerResultSchema.safeParse(raw);
+  return parsed.success
+    ? { ok: true, value: parsed.data }
+    : {
+        ok: false,
+        code: "MODEL_RESPONSE_INVALID",
+        message: "The on-device model returned an unusable plan.",
+      };
 }
 
 export async function subscribeToTranscript(
@@ -103,6 +138,16 @@ export async function subscribeToTranscript(
   if (!nativeIntelligenceAvailable()) return null;
   return plugin.addListener("transcript", (value) => {
     const parsed = transcriptEventSchema.safeParse(value);
+    if (parsed.success) listener(parsed.data);
+  });
+}
+
+export async function subscribeToAudioLevel(
+  listener: (event: LevelEvent) => void,
+) {
+  if (!nativeIntelligenceAvailable()) return null;
+  return plugin.addListener("level", (value) => {
+    const parsed = levelEventSchema.safeParse(value);
     if (parsed.success) listener(parsed.data);
   });
 }

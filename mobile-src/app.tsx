@@ -291,7 +291,7 @@ function SessionGate() {
   useEffect(() => {
     if (settled) hideSplashScreen();
   }, [settled]);
-  if (auth.loading || (signedIn && onboarded === null))
+  if (auth.loading)
     return (
       <main className="auth" aria-label="Restoring secure session">
         <div className="brand">
@@ -302,10 +302,20 @@ function SessionGate() {
       </main>
     );
   if (!auth.accessToken) return <SignIn />;
+  /*
+   * DataProvider mounts as soon as there is a session, not after the onboarding
+   * flag has been read. Both reads go through the same native bridge, and
+   * waiting on the Keychain before even *starting* the cached-snapshot read put
+   * two round trips end to end on the one path where nothing is on screen yet.
+   * Running them side by side means the snapshot — and the bootstrap request
+   * behind it — is already in flight while the flag resolves.
+   */
   return (
     <DataProvider>
       <Suspense fallback={<LoadingPage />}>
-        {onboarded ? (
+        {onboarded === null ? (
+          <LoadingPage />
+        ) : onboarded ? (
           <Shell />
         ) : (
           <Onboarding

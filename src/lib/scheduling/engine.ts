@@ -82,12 +82,22 @@ function base(a: SchedulingAction, i: number, p?: Preference): ProposalItem {
     assumptions: [...a.assumptions],
   };
 }
-export function buildScheduleProposal(
+export type RejectedAction = { title: string; reason: string };
+/**
+ * Accepted placements alongside the ones that could not be made. A compound
+ * request is several independent instructions, so one unplaceable item is a
+ * reason to report that item — not to discard the three that did fit.
+ */
+export type ScheduleProposalPlan = {
+  items: ProposalItem[];
+  rejected: RejectedAction[];
+};
+export function planScheduleProposal(
   intent: SchedulingIntent,
   existing: CalendarItem[],
   preferences: Preference[] = [],
   now = new Date(),
-) {
+): ScheduleProposalPlan {
   if (intent.ambiguity)
     throw new SchedulingValidationError(
       intent.essential_question ?? "More detail is required.",
@@ -95,7 +105,27 @@ export function buildScheduleProposal(
   const busy = occupied(existing),
     out: ProposalItem[] = [];
   const byTitle = new Map<string, ProposalItem>();
+  const rejected: RejectedAction[] = [];
   for (const [ai, a] of intent.actions.entries()) {
+    // A rejected action must leave nothing behind: a preparation can place
+    // several sessions before a later one fails, and those already claimed
+    // room in `busy` that the remaining actions would otherwise route around.
+    const busyMark = busy.length,
+      outMark = out.length;
+    try {
+      place(a, ai);
+    } catch (reason) {
+      if (!(reason instanceof SchedulingValidationError)) throw reason;
+      busy.length = busyMark;
+      out.length = outMark;
+      byTitle.delete(a.title.toLowerCase());
+      rejected.push({ title: a.title, reason: reason.message });
+    }
+  }
+  validateProposalItems(out, existing);
+  return { items: out, rejected };
+
+  function place(a: SchedulingAction, ai: number) {
     const p = pref(a, preferences);
     if (a.kind === "deadline") {
       const due = ms(a.due_at, `${a.title} deadline`);
@@ -106,7 +136,7 @@ export function buildScheduleProposal(
       const x = base(a, out.length, p);
       out.push(x);
       byTitle.set(a.title.toLowerCase(), x);
-      continue;
+      return;
     }
     const total =
       a.total_effort_minutes ??
@@ -202,8 +232,22 @@ export function buildScheduleProposal(
     if (remain > 0)
       throw new SchedulingValidationError(`${a.title} needs more sessions.`);
   }
-  validateProposalItems(out, existing);
-  return out;
+}
+/**
+ * The strict form: any unplaceable action fails the whole request. Kept for the
+ * web confirmation route and its tests, where a partial plan has nowhere to be
+ * reported. The mobile client calls `planScheduleProposal` directly.
+ */
+export function buildScheduleProposal(
+  intent: SchedulingIntent,
+  existing: CalendarItem[],
+  preferences: Preference[] = [],
+  now = new Date(),
+) {
+  const plan = planScheduleProposal(intent, existing, preferences, now);
+  if (plan.rejected.length)
+    throw new SchedulingValidationError(plan.rejected[0].reason);
+  return plan.items;
 }
 export function validateProposalItems(
   items: ProposalItem[],
