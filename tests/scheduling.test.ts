@@ -1,4 +1,8 @@
 import { describe, expect, it } from "vitest";
+import {
+  plannerResultToIntent,
+  type NativePlannerResult,
+} from "@/lib/mobile/contracts";
 import { deterministicInterpret } from "@/lib/scheduling/fallback";
 import {
   buildScheduleProposal,
@@ -11,6 +15,54 @@ import type { CalendarItem, Preference } from "@/lib/types";
 const now = new Date("2026-07-18T02:00:00.000Z"),
   command =
     "Add Systems Design class tomorrow from 10 to 11:30, gym after class for an hour, and my paper is due Friday at 5pm. Block 90 minutes for research.";
+
+function nativeEvent(
+  title: string,
+  startAt: string,
+  endAt: string,
+  afterTitle = "",
+): NativePlannerResult["actions"][number] {
+  const durationMinutes =
+    (new Date(endAt).getTime() - new Date(startAt).getTime()) / 60_000;
+  return {
+    kind: "event",
+    title,
+    category: "Personal",
+    locationLabel: "",
+    startAt,
+    endAt,
+    dueAt: "",
+    durationMinutes,
+    totalEffortMinutes: 0,
+    sessionLengthMinutes: 0,
+    blockCount: 0,
+    afterTitle,
+    relatedDeadlineTitle: "",
+    flexibility: "fixed",
+    canShorten: false,
+    canSplit: false,
+    canSkip: false,
+    priority: 4,
+    reminderMinutes: 10,
+    assumptions: [],
+  };
+}
+
+function nativeResult(
+  actions: NativePlannerResult["actions"],
+): NativePlannerResult {
+  return {
+    kind: "proposal",
+    summary: "Plan three fixed events.",
+    question: "",
+    followUpKind: "none",
+    assumptions: [],
+    actions,
+    contextVersion: 1,
+    provider: "apple-intelligence",
+  };
+}
+
 describe("Phase 1 deterministic interpretation", () => {
   it("preserves the compound demo command", () => {
     const x = deterministicInterpret(command, now);
@@ -52,6 +104,50 @@ describe("Phase 1 deterministic interpretation", () => {
     );
   });
 });
+
+describe("Apple Intelligence dependency guard", () => {
+  const command = "Gym at 1-3pm, lunch from 11:30-12:30pm, school from 4-6pm";
+  const actions = [
+    nativeEvent(
+      "Gym",
+      "2026-07-19T13:00:00+08:00",
+      "2026-07-19T15:00:00+08:00",
+      "Lunch",
+    ),
+    nativeEvent(
+      "Lunch",
+      "2026-07-19T11:30:00+08:00",
+      "2026-07-19T12:30:00+08:00",
+    ),
+    nativeEvent(
+      "School",
+      "2026-07-19T16:00:00+08:00",
+      "2026-07-19T18:00:00+08:00",
+    ),
+  ];
+
+  it("does not turn comma order into an after-title constraint", () => {
+    const intent = plannerResultToIntent(nativeResult(actions), command);
+    expect(intent.actions[0].after_title).toBeNull();
+
+    const plan = planScheduleProposal(intent, [], [], now);
+    expect(plan.rejected).toEqual([]);
+    expect(plan.items.map((item) => item.title)).toEqual([
+      "Gym",
+      "Lunch",
+      "School",
+    ]);
+  });
+
+  it("keeps a dependency that the user explicitly requested", () => {
+    const intent = plannerResultToIntent(
+      nativeResult(actions),
+      "Lunch from 11:30-12:30pm, then gym from 1-3pm",
+    );
+    expect(intent.actions[0].after_title).toBe("Lunch");
+  });
+});
+
 describe("compound commands stay compound", () => {
   // 08:00 Manila, so an unqualified morning time is still ahead of "now".
   const morning = new Date("2026-07-18T00:00:00.000Z");

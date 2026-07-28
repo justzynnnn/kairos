@@ -214,7 +214,9 @@ export default function Assistant() {
           metricNow() - transcriptionStartedAt.current,
           { capability: modernSpeechRef.current ? "modern" : "legacy" },
         );
-      if (event.isFinal) setRecording(false);
+      // `isFinal` only means this phrase will no longer be revised. A pause
+      // can finalize one phrase while the microphone continues listening, so
+      // only the voice sheet's Done and Cancel actions may end the session.
     }).then((value) => {
       listener = value;
       if (!active) void value?.remove();
@@ -340,7 +342,7 @@ export default function Assistant() {
       });
       if (native.ok) {
         await showIntent(
-          plannerResultToIntent(native.value),
+          plannerResultToIntent(native.value, value),
           "apple-intelligence",
         );
         if (auth.accessToken)

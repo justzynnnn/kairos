@@ -66,9 +66,18 @@ export const nativePlannerResultSchema = z.object({
   provider: z.literal("apple-intelligence"),
 });
 
+const explicitDependencyLanguage =
+  /\b(?:after|afterwards|before|then|following|followed\s+by|prior\s+to|tapos|pagkatapos|bago|sunod\s+sa)\b/i;
+
 export function plannerResultToIntent(
   value: z.infer<typeof nativePlannerResultSchema>,
+  sourceCommand = "",
 ): SchedulingIntent {
+  // The model occasionally treats the order of comma-separated fixed events
+  // as a dependency even when their clock times say otherwise. An after-title
+  // constraint is only user intent when the original words express ordering;
+  // a structurally valid hallucination must not reach the strict validator.
+  const acceptsDependencies = explicitDependencyLanguage.test(sourceCommand);
   return schedulingIntentSchema.parse({
     summary: value.summary,
     ambiguity: value.kind === "clarification",
@@ -88,7 +97,8 @@ export function plannerResultToIntent(
       total_effort_minutes: action.totalEffortMinutes || null,
       session_length_minutes: action.sessionLengthMinutes || null,
       block_count: action.blockCount || null,
-      after_title: action.afterTitle || null,
+      after_title:
+        acceptsDependencies && action.afterTitle ? action.afterTitle : null,
       related_deadline_title: action.relatedDeadlineTitle || null,
       flexibility: action.flexibility,
       can_shorten: action.canShorten,

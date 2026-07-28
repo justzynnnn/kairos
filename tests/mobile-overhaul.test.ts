@@ -126,7 +126,10 @@ describe("bundled mobile architecture", () => {
     );
     expect(swift).toContain("@Generable");
     expect(swift).toContain("generating: NativePlannerResponse.self");
-    expect(swift).toContain("SpeechTranscriber");
+    expect(swift).toContain("DictationTranscriber");
+    expect(swift).toContain("AnalysisContext");
+    expect(swift).toContain("contextualStrings[.general]");
+    expect(swift).toContain(".alternativeTranscriptions");
     expect(swift).toContain("bestAvailableAudioFormat");
     expect(swift).toContain("AVAudioConverter");
     expect(swift).toContain("requiresOnDeviceRecognition = true");
@@ -566,12 +569,27 @@ describe("phase 5 capture and onboarding", () => {
     );
     // Cancelling gives back what was typed before the mic opened.
     expect(assistant).toContain("setCommand(commandBeforeVoice.current)");
+    // A finalized phrase is not the end of a recording; pauses must leave the
+    // sheet and microphone under the user's control.
+    expect(assistant).not.toContain("if (event.isFinal) setRecording(false)");
+    expect(assistant).toContain("only the voice sheet's Done and Cancel");
     expect(voice).toContain("subscribeToAudioLevel");
     // Amplitude drives a custom property from a rAF loop; it must never become
     // twenty React renders a second.
     expect(voice).toContain('setProperty("--level"');
     expect(voice).toContain("requestAnimationFrame");
     expect(voice).not.toContain("setLevel");
+  });
+
+  it("accumulates accurate scheduling dictation across pauses", () => {
+    const swift = fs.readFileSync(
+      "ios/App/App/KairosIntelligencePlugin.swift",
+      "utf8",
+    );
+    expect(swift).toContain("finalizedPhrases");
+    expect(swift).toContain("joinedTranscript(finalizedPhrases + [phrase])");
+    expect(swift).toContain('"gym", "workout"');
+    expect(swift).not.toContain("frequentFinalization");
   });
 
   it("gates unattended scheduling behind an explicit setting", () => {

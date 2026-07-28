@@ -85,7 +85,7 @@ private struct NativeSchedulingAction {
     var sessionLengthMinutes: Int
     @Guide(description: "Preparation block count, or zero.", .range(0...20))
     var blockCount: Int
-    @Guide(description: "Title this should follow, otherwise an empty string.")
+    @Guide(description: "Title this should follow only when the user explicitly says after, then, tapos, or equivalent. Never infer a dependency from list order or explicit clock times. Otherwise an empty string.")
     var afterTitle: String
     @Guide(description: "Related deadline title, otherwise an empty string.")
     var relatedDeadlineTitle: String
@@ -221,10 +221,52 @@ private func normalizedLevel(_ buffer: AVAudioPCMBuffer) -> Double {
     return Double(min(1, max(0, (decibels + 50) / 50)))
 }
 
+private let schedulingVocabulary = [
+    "gym", "workout", "exercise", "lunch", "breakfast", "dinner", "school",
+    "class", "lecture", "laboratory", "lab", "study", "review", "exam",
+    "quiz", "deadline", "meeting", "appointment", "interview", "standup",
+    "call", "errand", "commute", "Monday", "Tuesday", "Wednesday",
+    "Thursday", "Friday", "Saturday", "Sunday", "morning", "afternoon",
+    "evening", "noon", "midnight", "AM", "PM"
+]
+
+private let schedulingVocabularyWords = Set(
+    schedulingVocabulary.map { $0.lowercased() }
+)
+
+private func preferredSchedulingTranscription(
+    _ alternatives: [AttributedString]
+) -> String {
+    let values = alternatives.map { String($0.characters) }
+    guard let first = values.first else { return "" }
+    return values.dropFirst().reduce(first) { current, candidate in
+        let currentWords = Set(
+            current.lowercased().split { !$0.isLetter }.map(String.init)
+        )
+        let candidateWords = Set(
+            candidate.lowercased().split { !$0.isLetter }.map(String.init)
+        )
+        let currentScore = currentWords.intersection(
+            schedulingVocabularyWords
+        ).count
+        let candidateScore = candidateWords.intersection(
+            schedulingVocabularyWords
+        ).count
+        return candidateScore > currentScore ? candidate : current
+    }
+}
+
+private func joinedTranscript(_ parts: [String]) -> String {
+    parts
+        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+        .filter { !$0.isEmpty }
+        .joined(separator: " ")
+}
+
 @available(iOS 26.0, *)
 private final class ModernSpeechSession {
     private let analyzer: SpeechAnalyzer
-    private let transcriber: SpeechTranscriber
+    private let transcriber: DictationTranscriber
     private let engine = AVAudioEngine()
     private var continuation: AsyncStream<AnalyzerInput>.Continuation?
     private var analysisTask: Task<Void, Never>?
@@ -243,7 +285,17 @@ private final class ModernSpeechSession {
         self.localeIdentifier = locale.identifier
         self.onResult = onResult
         self.onLevel = onLevel
-        transcriber = SpeechTranscriber(locale: locale, preset: .progressiveTranscription)
+        let preset = DictationTranscriber.Preset.shortDictation
+        transcriber = DictationTranscriber(
+            locale: locale,
+            contentHints: preset.contentHints,
+            transcriptionOptions: preset.transcriptionOptions,
+            reportingOptions: preset.reportingOptions.union([
+                .volatileResults,
+                .alternativeTranscriptions
+            ]),
+            attributeOptions: preset.attributeOptions
+        )
         analyzer = SpeechAnalyzer(
             modules: [transcriber],
             options: .init(priority: .userInitiated, modelRetention: .lingering)
@@ -279,14 +331,29 @@ private final class ModernSpeechSession {
             throw SpeechStartError.audioFormatUnavailable
         }
         audioConverter = converter
+        let analysisContext = AnalysisContext()
+        analysisContext.contextualStrings[.general] = schedulingVocabulary
+        try await analyzer.setContext(analysisContext)
         try await analyzer.prepareToAnalyze(in: analyzerFormat)
         let stream = AsyncStream<AnalyzerInput> { continuation in
             self.continuation = continuation
         }
         resultTask = Task { [transcriber, onResult] in
+            var finalizedPhrases = [String]()
             do {
                 for try await result in transcriber.results {
-                    onResult(String(result.text.characters), result.isFinal)
+                    let phrase = preferredSchedulingTranscription(
+                        result.alternatives
+                    )
+                    if result.isFinal {
+                        if !phrase.isEmpty { finalizedPhrases.append(phrase) }
+                        onResult(joinedTranscript(finalizedPhrases), true)
+                    } else {
+                        onResult(
+                            joinedTranscript(finalizedPhrases + [phrase]),
+                            false
+                        )
+                    }
                 }
             } catch {
                 onResult("", true)
@@ -446,9 +513,10 @@ final class KairosIntelligencePlugin: CAPPlugin, CAPBridgedPlugin {
             var selectedLocale = preferredLegacyLocale().identifier
             var modernSpeechAvailable = false
             if #available(iOS 26.0, *) {
-                modernSpeechAvailable = SpeechTranscriber.isAvailable
-                locales = await SpeechTranscriber.supportedLocales.map(\.identifier)
-                selectedLocale = preferredLocale(from: await SpeechTranscriber.supportedLocales).identifier
+                let supported = await DictationTranscriber.supportedLocales
+                modernSpeechAvailable = !supported.isEmpty
+                locales = supported.map(\.identifier)
+                selectedLocale = preferredLocale(from: supported).identifier
             } else {
                 locales = SFSpeechRecognizer.supportedLocales().map(\.identifier).sorted()
             }
@@ -601,8 +669,9 @@ final class KairosIntelligencePlugin: CAPPlugin, CAPBridgedPlugin {
                     self.transcriptSessionId = sessionId
                     self.transcriptSequence = 0
                     let requestedLocale = call.getString("locale")
-                    if #available(iOS 26.0, *), SpeechTranscriber.isAvailable {
-                        let supported = await SpeechTranscriber.supportedLocales
+                    if #available(iOS 26.0, *),
+                       !(await DictationTranscriber.supportedLocales).isEmpty {
+                        let supported = await DictationTranscriber.supportedLocales
                         let locale = requestedLocale.flatMap { requested in
                             supported.first(where: { $0.identifier == requested })
                         } ?? self.preferredLocale(from: supported)
@@ -690,6 +759,8 @@ final class KairosIntelligencePlugin: CAPPlugin, CAPBridgedPlugin {
         Example: "move my dentist appointment" names one thing and is missing its new time, so return a clarification instead of guessing.
 
         A time range stating the meridiem once applies it to both ends: "9-11:30am" is 09:00 to 11:30, and "12 to 1pm" is 12:00 to 13:00.
+
+        Comma order is not schedule order. Never set afterTitle merely because one item was mentioned after another. Use it only when the user explicitly states a dependency such as "after lunch", "then", or "tapos".
         """
         let session = LanguageModelSession(
             tools: [
