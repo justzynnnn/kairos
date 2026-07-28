@@ -1213,6 +1213,7 @@ a {
   display: grid;
   gap: 1rem;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  margin-top: max(-7rem, -16vw);
   position: relative;
   z-index: 2;
 }
@@ -2009,7 +2010,7 @@ a {
 
 @media (max-width: 899px) {
   .home-hero {
-    margin-bottom: 1.5rem;
+    margin-bottom: 0;
   }
   .home-priority-grid,
   .home-detail-grid {

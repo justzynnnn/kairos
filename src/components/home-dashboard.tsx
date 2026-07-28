@@ -75,7 +75,6 @@ export function HomeDashboard({
           className="home-hero-mori"
         />
       </header>
-      <DayGuardian items={items} />
       <div className="home-priority-grid">
         <HomeAssistantComposer
           cloudFallbackConfigured={cloudFallbackConfigured}
@@ -121,6 +120,7 @@ export function HomeDashboard({
           )}
         </section>
       </div>
+      <DayGuardian items={items} />
 
       <div className="home-detail-grid">
         <section className="agenda-section">

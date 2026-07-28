@@ -23,11 +23,18 @@ test("Home puts the Mori planner entry first and keeps it usable at key widths",
     await expect(page.locator(".home-hero-mori img")).toBeVisible();
     const metrics = await page.evaluate(() => {
       const hero = document.querySelector<HTMLElement>(".home-hero");
+      const mascot = document.querySelector<HTMLElement>(".home-hero-mori");
+      const plannerEntry =
+        document.querySelector<HTMLElement>(".home-plan-entry");
       const priorityGrid = document.querySelector<HTMLElement>(
         ".home-priority-grid",
       );
+      const mascotRect = mascot!.getBoundingClientRect();
+      const plannerEntryRect = plannerEntry!.getBoundingClientRect();
 
       return {
+        cardEdgeWithinMascot:
+          (plannerEntryRect.top - mascotRect.top) / mascotRect.height,
         heroLayer: Number(getComputedStyle(hero!).zIndex),
         innerWidth: window.innerWidth,
         priorityGridLayer: Number(getComputedStyle(priorityGrid!).zIndex),
@@ -39,6 +46,12 @@ test("Home puts the Mori planner entry first and keeps it usable at key widths",
     );
     expect(metrics.priorityGridLayer, JSON.stringify(metrics)).toBeGreaterThan(
       metrics.heroLayer,
+    );
+    expect(metrics.cardEdgeWithinMascot, JSON.stringify(metrics)).toBeGreaterThan(
+      0.45,
+    );
+    expect(metrics.cardEdgeWithinMascot, JSON.stringify(metrics)).toBeLessThan(
+      0.7,
     );
   }
 
