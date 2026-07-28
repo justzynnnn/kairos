@@ -37,8 +37,8 @@ test("Home puts the Mori planner entry first and keeps it usable at key widths",
     expect(metrics.scrollWidth, JSON.stringify(metrics)).toBeLessThanOrEqual(
       metrics.innerWidth,
     );
-    expect(metrics.heroLayer, JSON.stringify(metrics)).toBeGreaterThan(
-      metrics.priorityGridLayer,
+    expect(metrics.priorityGridLayer, JSON.stringify(metrics)).toBeGreaterThan(
+      metrics.heroLayer,
     );
   }
 
