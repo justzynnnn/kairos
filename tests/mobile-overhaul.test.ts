@@ -586,8 +586,10 @@ describe("phase 5 capture and onboarding", () => {
       "ios/App/App/KairosIntelligencePlugin.swift",
       "utf8",
     );
-    expect(swift).toContain("finalizedPhrases");
-    expect(swift).toContain("joinedTranscript(finalizedPhrases + [phrase])");
+    expect(swift).toContain("TranscriptSegment");
+    expect(swift).toContain("segment.replaces($0)");
+    expect(swift).toContain("transcriptSegments.map(\\.text)");
+    expect(swift).not.toContain("finalizedPhrases.append(phrase)");
     expect(swift).toContain('"gym", "workout"');
     expect(swift).not.toContain("frequentFinalization");
   });

@@ -264,6 +264,37 @@ private func joinedTranscript(_ parts: [String]) -> String {
 }
 
 @available(iOS 26.0, *)
+private struct TranscriptSegment {
+    let range: CMTimeRange
+    let text: String
+
+    private var start: Double {
+        CMTimeGetSeconds(range.start)
+    }
+
+    private var end: Double {
+        CMTimeGetSeconds(range.end)
+    }
+
+    func replaces(_ other: TranscriptSegment) -> Bool {
+        guard start.isFinite, end.isFinite,
+              other.start.isFinite, other.end.isFinite else {
+            return false
+        }
+        // Volatile and finalized interpretations of the same speech occupy
+        // the same audio range. Replace that range instead of appending every
+        // revision, which otherwise repeats a single utterance several times.
+        let overlap = max(start, other.start) < min(end, other.end)
+        let sameStart = abs(start - other.start) < 0.02
+        return overlap || sameStart
+    }
+
+    static func ordered(_ left: TranscriptSegment, _ right: TranscriptSegment) -> Bool {
+        CMTimeCompare(left.range.start, right.range.start) < 0
+    }
+}
+
+@available(iOS 26.0, *)
 private final class ModernSpeechSession {
     private let analyzer: SpeechAnalyzer
     private let transcriber: DictationTranscriber
@@ -339,21 +370,25 @@ private final class ModernSpeechSession {
             self.continuation = continuation
         }
         resultTask = Task { [transcriber, onResult] in
-            var finalizedPhrases = [String]()
+            var transcriptSegments = [TranscriptSegment]()
             do {
                 for try await result in transcriber.results {
                     let phrase = preferredSchedulingTranscription(
                         result.alternatives
                     )
-                    if result.isFinal {
-                        if !phrase.isEmpty { finalizedPhrases.append(phrase) }
-                        onResult(joinedTranscript(finalizedPhrases), true)
-                    } else {
-                        onResult(
-                            joinedTranscript(finalizedPhrases + [phrase]),
-                            false
-                        )
+                    let segment = TranscriptSegment(
+                        range: result.range,
+                        text: phrase
+                    )
+                    transcriptSegments.removeAll {
+                        segment.replaces($0)
                     }
+                    if !phrase.isEmpty { transcriptSegments.append(segment) }
+                    transcriptSegments.sort(by: TranscriptSegment.ordered)
+                    onResult(
+                        joinedTranscript(transcriptSegments.map(\.text)),
+                        result.isFinal
+                    )
                 }
             } catch {
                 onResult("", true)
