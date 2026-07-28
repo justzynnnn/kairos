@@ -1223,12 +1223,65 @@ a {
 .home-page {
   width: 100%;
 }
+.home-hero {
+  isolation: isolate;
+  min-height: clamp(17rem, 62vw, 24rem);
+  overflow: visible;
+  padding: clamp(1rem, 3vw, 2rem) 0 clamp(1.5rem, 5vw, 3rem);
+  position: relative;
+}
+.home-hero::before {
+  background:
+    radial-gradient(circle at 76% 17%, var(--mori-river-strong) 0 0.22rem, transparent 0.27rem),
+    radial-gradient(circle at 94% 27%, var(--lavender) 0 0.18rem, transparent 0.24rem),
+    radial-gradient(circle at 86% 44%, var(--mori-river-strong) 0 0.12rem, transparent 0.18rem),
+    radial-gradient(circle at 62% 45%, var(--lavender) 0 0.12rem, transparent 0.18rem),
+    radial-gradient(circle at 7% 62%, var(--mori-river-strong) 0 0.12rem, transparent 0.18rem);
+  content: "";
+  inset: 0;
+  opacity: 0.75;
+  pointer-events: none;
+  position: absolute;
+  z-index: -1;
+}
+.home-hero-copy {
+  max-width: min(68%, 42rem);
+  position: relative;
+  z-index: 2;
+}
+.home-hero-title {
+  color: var(--navy);
+  font-family: var(--font-montserrat), Montserrat, system-ui, sans-serif;
+  font-size: clamp(2rem, 6.5vw, 3.5rem);
+  font-weight: 740;
+  letter-spacing: -0.05em;
+  line-height: 1.08;
+  margin-top: 0.55rem;
+}
+.home-hero-title span {
+  color: #6473ea;
+  display: block;
+}
+.home-hero-mori {
+  bottom: -4.75rem;
+  filter: drop-shadow(0 18px 18px rgba(18, 53, 116, 0.18));
+  height: clamp(13.5rem, 64vw, 25rem);
+  position: absolute;
+  right: clamp(-1.75rem, -4vw, -0.5rem);
+  width: clamp(13.5rem, 64vw, 25rem);
+  z-index: 3;
+}
 .next-up-panel {
-  background: var(--navy);
+  background:
+    radial-gradient(circle at 73% 33%, rgba(148, 133, 255, 0.8) 0 0.4rem, transparent 0.45rem),
+    radial-gradient(circle at 85% 54%, rgba(98, 222, 237, 0.42) 0 0.12rem, transparent 0.18rem),
+    linear-gradient(135deg, #061d55, #132f72 55%, #1a3f8d);
   border-radius: 1.25rem;
   color: white;
   min-height: 14rem;
   padding: clamp(1.1rem, 3vw, 1.6rem);
+  position: relative;
+  overflow: hidden;
 }
 .next-up-panel h2 {
   font-family: var(--font-montserrat), Montserrat, sans-serif;
@@ -1240,6 +1293,17 @@ a {
 }
 .next-up-panel .eyebrow {
   color: rgba(255, 255, 255, 0.82);
+}
+.next-up-celebration {
+  align-items: center;
+  background: rgba(113, 102, 239, 0.24);
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 0.9rem;
+  font-weight: 700;
+  gap: 0.45rem;
+  margin-top: 2rem;
+  padding: 0.65rem 0.9rem;
 }
 .assistant-entry {
   background: var(--surface);
@@ -1260,30 +1324,64 @@ a {
   margin-top: 0.2rem;
 }
 .home-plan-entry {
+  background: color-mix(in srgb, var(--surface) 94%, #f7f5ff);
+  border: 2px solid color-mix(in srgb, var(--lavender) 38%, white);
+  box-shadow: 0 16px 30px rgba(75, 74, 177, 0.14);
   isolation: isolate;
   overflow: visible;
   position: relative;
 }
-.home-plan-entry-mori {
-  bottom: 100%;
-  filter: drop-shadow(0 12px 14px rgba(18, 53, 116, 0.12));
-  position: absolute;
-  right: 0.25rem;
-  transform: translate(-3rem, 54%);
-  width: clamp(7rem, 18vw, 10.5rem);
-  z-index: 1;
+.home-plan-entry-copy {
+  align-items: start;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: auto minmax(0, 1fr);
+  padding-right: clamp(3.5rem, 23vw, 10rem);
 }
-@media (min-width: 640px) {
-  .home-plan-entry-mori {
-    right: 1rem;
-  }
+.home-plan-entry-copy p:first-child {
+  color: var(--navy);
+  font-size: clamp(1.35rem, 4vw, 1.85rem);
+  line-height: 1.2;
 }
-.home-plan-entry .assistant-entry-copy,
-.home-plan-entry .assistant-entry-field,
-.home-plan-entry small {
-  max-width: calc(100% - clamp(5.2rem, 18vw, 9.5rem));
-  position: relative;
-  z-index: 2;
+.home-plan-entry-copy p:last-child {
+  font-size: 0.95rem;
+  max-width: 31rem;
+}
+.home-plan-entry-icon {
+  align-items: center;
+  background: linear-gradient(135deg, #eeeaff, #dce8ff);
+  border-radius: 999px;
+  color: #6b6ef0;
+  display: grid;
+  height: 4.25rem;
+  place-items: center;
+  width: 4.25rem;
+}
+.home-plan-entry .assistant-entry-field {
+  background: white;
+  border-color: color-mix(in srgb, var(--lavender) 30%, var(--outline));
+  box-shadow: inset 0 1px 2px rgba(18, 53, 116, 0.035);
+}
+.home-plan-entry .assistant-entry-field button {
+  background: linear-gradient(135deg, #6473ea, #7a66ed);
+  height: 2.8rem;
+  width: 2.8rem;
+}
+.home-plan-entry-note {
+  align-items: start;
+  display: flex;
+  font-size: 0.8rem !important;
+  gap: 0.55rem;
+  line-height: 1.45;
+}
+.home-plan-entry-note svg {
+  color: #6b6ef0;
+  flex: 0 0 auto;
+}
+.home-plan-entry-native-note {
+  display: block;
+  font-size: 0.7rem !important;
+  line-height: 1.45;
 }
 .assistant-entry-icon {
   align-items: center;
@@ -1907,12 +2005,28 @@ a {
 }
 
 @media (max-width: 899px) {
+  .home-hero {
+    margin-bottom: 1.5rem;
+  }
   .home-priority-grid,
   .home-detail-grid {
     grid-template-columns: 1fr;
   }
   .week-calendar {
     overflow-x: auto;
+  }
+}
+
+@media (min-width: 900px) {
+  .home-hero-copy {
+    max-width: min(62%, 42rem);
+  }
+  .home-hero-mori {
+    bottom: -5.5rem;
+    right: 2rem;
+  }
+  .home-plan-entry-copy {
+    padding-right: 0;
   }
 }
 

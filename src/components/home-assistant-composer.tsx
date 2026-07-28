@@ -3,8 +3,7 @@
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowRight } from "lucide-react";
-import { MoriMascot } from "@/components/mori-mascot";
+import { ArrowRight, Sparkles } from "lucide-react";
 
 export function HomeAssistantComposer({
   cloudFallbackConfigured,
@@ -23,18 +22,17 @@ export function HomeAssistantComposer({
 
   return (
     <section className="assistant-entry home-plan-entry">
-      <MoriMascot
-        state="cardEdgeWave"
-        size="large"
-        alt=""
-        className="home-plan-entry-mori"
-      />
-      <div className="assistant-entry-copy">
-        <p className="font-display font-semibold">Plan with Mori</p>
-        <p>
-          Start here, then review assumptions, conflicts, and every proposed
-          change in the full Assistant.
-        </p>
+      <div className="assistant-entry-copy home-plan-entry-copy">
+        <span className="home-plan-entry-icon" aria-hidden="true">
+          <Sparkles className="size-7" />
+        </span>
+        <div>
+          <p className="font-display font-semibold">Plan with Mori</p>
+          <p>
+            Start a conversation to plan your day, review changes, and make
+            time for what matters.
+          </p>
+        </div>
       </div>
       <div className="assistant-entry-field">
         <input
@@ -55,8 +53,12 @@ export function HomeAssistantComposer({
           <ArrowRight className="size-4" />
         </button>
       </div>
+      <small className="home-plan-entry-note">
+        <Sparkles className="size-4" /> Mori reviews assumptions, conflicts,
+        and every proposed change.
+      </small>
       {!cloudFallbackConfigured && (
-        <small>
+        <small className="home-plan-entry-native-note">
           On-device planning is available in the iOS app. Typed deterministic
           planning remains available here.
         </small>

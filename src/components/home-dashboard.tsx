@@ -1,9 +1,17 @@
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, Clock3, ShieldCheck } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle2,
+  Clock3,
+  MoonStar,
+  ShieldCheck,
+} from "lucide-react";
 import { CalendarItemCard } from "@/components/calendar-item-card";
 import { ActivityHeatmap } from "@/components/activity-heatmap";
 import { DayGuardian } from "@/components/day-guardian";
 import { HomeAssistantComposer } from "@/components/home-assistant-composer";
+import { MoriMascot } from "@/components/mori-mascot";
 import {
   formatDate,
   formatTime,
@@ -47,18 +55,25 @@ export function HomeDashboard({
 
   return (
     <div className="page-stack home-page">
-      <header className="page-header">
-        <div>
+      <header className="home-hero">
+        <div className="home-hero-copy">
           <p className="eyebrow">
             {formatDate(now.toISOString(), viewer.timezone)}
           </p>
-          <h1 className="page-title mt-2">
-            {greetingFor(viewer.timezone, now)}, {viewer.fullName}
+          <h1 className="home-hero-title">
+            {greetingFor(viewer.timezone, now)},
+            <span>{viewer.fullName}</span>
           </h1>
           <p className="page-description">
             Here is what needs your attention next.
           </p>
         </div>
+        <MoriMascot
+          state="wave"
+          size="large"
+          alt=""
+          className="home-hero-mori"
+        />
       </header>
       <DayGuardian items={items} />
       <div className="home-priority-grid">
@@ -68,7 +83,11 @@ export function HomeDashboard({
         <section className="next-up-panel">
           <div className="flex items-center justify-between">
             <p className="eyebrow text-white/60">Next up</p>
-            <Clock3 className="size-5 text-[var(--cyan)]" />
+            {nextUp ? (
+              <Clock3 className="size-6 text-[var(--mori-river-strong)]" />
+            ) : (
+              <MoonStar className="size-7 text-[var(--mori-river-strong)]" />
+            )}
           </div>
           {nextUp ? (
             <>
@@ -94,6 +113,9 @@ export function HomeDashboard({
               <h2 className="mt-5">Your schedule is clear</h2>
               <p className="mt-2 text-sm text-white/65">
                 There are no upcoming timed items.
+              </p>
+              <p className="next-up-celebration">
+                <CheckCircle2 className="size-5" /> Great job!
               </p>
             </>
           )}

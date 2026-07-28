@@ -13,9 +13,9 @@ const MoriScene = dynamic(
 export type MoriMascotSize = "small" | "medium" | "large";
 
 const sizes: Record<MoriMascotSize, string> = {
-  small: "size-12",
-  medium: "size-24 sm:size-28",
-  large: "size-36 sm:size-44",
+  small: "size-14",
+  medium: "size-28 sm:size-32",
+  large: "size-48 sm:size-56",
 };
 
 export function MoriMascot({

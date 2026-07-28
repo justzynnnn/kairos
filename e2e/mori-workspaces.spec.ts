@@ -20,7 +20,7 @@ test("Home puts the Mori planner entry first and keeps it usable at key widths",
     );
     await expect(input).toBeVisible();
     await expect(submit).toBeVisible();
-    await expect(entry.locator(".home-plan-entry-mori img")).toBeVisible();
+    await expect(page.locator(".home-hero-mori img")).toBeVisible();
     const metrics = await page.evaluate(() => ({
       innerWidth: window.innerWidth,
       scrollWidth: document.documentElement.scrollWidth,
