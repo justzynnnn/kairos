@@ -24,19 +24,37 @@ test("Home puts the Mori planner entry first and keeps it usable at key widths",
     const metrics = await page.evaluate(() => {
       const hero = document.querySelector<HTMLElement>(".home-hero");
       const mascot = document.querySelector<HTMLElement>(".home-hero-mori");
+      const name = document.querySelector<HTMLElement>(".home-hero-title span");
+      const nextUp = document.querySelector<HTMLElement>(".next-up-panel");
       const plannerEntry =
         document.querySelector<HTMLElement>(".home-plan-entry");
       const priorityGrid = document.querySelector<HTMLElement>(
         ".home-priority-grid",
       );
+      const representativeName = name!.cloneNode(false) as HTMLElement;
+      representativeName.textContent = "Alexandria Montgomery Chen";
+      representativeName.style.position = "absolute";
+      representativeName.style.visibility = "hidden";
+      name!.parentElement!.append(representativeName);
       const mascotRect = mascot!.getBoundingClientRect();
+      const nameRect = representativeName.getBoundingClientRect();
+      const nextUpRect = nextUp!.getBoundingClientRect();
       const plannerEntryRect = plannerEntry!.getBoundingClientRect();
+      const nameLineHeight = Number.parseFloat(
+        getComputedStyle(representativeName).lineHeight,
+      );
+      representativeName.remove();
 
       return {
         cardEdgeWithinMascot:
           (plannerEntryRect.top - mascotRect.top) / mascotRect.height,
         heroLayer: Number(getComputedStyle(hero!).zIndex),
         innerWidth: window.innerWidth,
+        nameLines: nameRect.height / nameLineHeight,
+        nextUpAspect: nextUpRect.height / nextUpRect.width,
+        plannerEntryAspect: plannerEntryRect.height / plannerEntryRect.width,
+        plannerEntryLeft: plannerEntryRect.left,
+        plannerEntryRight: plannerEntryRect.right,
         priorityGridLayer: Number(getComputedStyle(priorityGrid!).zIndex),
         scrollWidth: document.documentElement.scrollWidth,
       };
@@ -53,12 +71,22 @@ test("Home puts the Mori planner entry first and keeps it usable at key widths",
     expect(metrics.cardEdgeWithinMascot, JSON.stringify(metrics)).toBeLessThan(
       0.7,
     );
+    expect(metrics.nameLines, JSON.stringify(metrics)).toBeLessThanOrEqual(2.1);
+    expect(metrics.plannerEntryAspect, JSON.stringify(metrics)).toBeLessThan(0.9);
+    expect(metrics.nextUpAspect, JSON.stringify(metrics)).toBeLessThan(0.8);
+    expect(metrics.plannerEntryLeft, JSON.stringify(metrics)).toBeGreaterThanOrEqual(
+      0,
+    );
+    expect(metrics.plannerEntryRight, JSON.stringify(metrics)).toBeLessThanOrEqual(
+      metrics.innerWidth,
+    );
   }
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  await page.getByLabel("Ask Mori from Home").fill("Protect an hour tomorrow");
-  await page.keyboard.press("Enter");
+  const homeCommand = page.getByLabel("Ask Mori from Home");
+  await homeCommand.fill("Protect an hour tomorrow");
+  await homeCommand.press("Enter");
   await expect(page).toHaveURL(/\/assistant\?command=Protect/);
   await expect(page.getByLabel("What needs to happen?")).toHaveValue(
     "Protect an hour tomorrow",
