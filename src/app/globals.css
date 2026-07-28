@@ -1213,6 +1213,8 @@ a {
   display: grid;
   gap: 1rem;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  position: relative;
+  z-index: 1;
 }
 .home-page,
 .home-page > *,
@@ -1229,6 +1231,7 @@ a {
   overflow: visible;
   padding: clamp(1rem, 3vw, 2rem) 0 clamp(1.5rem, 5vw, 3rem);
   position: relative;
+  z-index: 2;
 }
 .home-hero::before {
   background:

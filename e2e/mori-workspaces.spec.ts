@@ -21,12 +21,24 @@ test("Home puts the Mori planner entry first and keeps it usable at key widths",
     await expect(input).toBeVisible();
     await expect(submit).toBeVisible();
     await expect(page.locator(".home-hero-mori img")).toBeVisible();
-    const metrics = await page.evaluate(() => ({
-      innerWidth: window.innerWidth,
-      scrollWidth: document.documentElement.scrollWidth,
-    }));
+    const metrics = await page.evaluate(() => {
+      const hero = document.querySelector<HTMLElement>(".home-hero");
+      const priorityGrid = document.querySelector<HTMLElement>(
+        ".home-priority-grid",
+      );
+
+      return {
+        heroLayer: Number(getComputedStyle(hero!).zIndex),
+        innerWidth: window.innerWidth,
+        priorityGridLayer: Number(getComputedStyle(priorityGrid!).zIndex),
+        scrollWidth: document.documentElement.scrollWidth,
+      };
+    });
     expect(metrics.scrollWidth, JSON.stringify(metrics)).toBeLessThanOrEqual(
       metrics.innerWidth,
+    );
+    expect(metrics.heroLayer, JSON.stringify(metrics)).toBeGreaterThan(
+      metrics.priorityGridLayer,
     );
   }
 
