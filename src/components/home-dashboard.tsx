@@ -55,70 +55,72 @@ export function HomeDashboard({
 
   return (
     <div className="page-stack home-page">
-      <header className="home-hero">
-        <div className="home-hero-copy">
-          <p className="eyebrow">
-            {formatDate(now.toISOString(), viewer.timezone)}
-          </p>
-          <h1 className="home-hero-title">
-            {greetingFor(viewer.timezone, now)},
-            <span>{viewer.fullName}</span>
-          </h1>
-          <p className="page-description">
-            Here is what needs your attention next.
-          </p>
-        </div>
+      <div className="home-plan-composition">
+        <header className="home-hero">
+          <div className="home-hero-copy">
+            <p className="eyebrow">
+              {formatDate(now.toISOString(), viewer.timezone)}
+            </p>
+            <h1 className="home-hero-title">
+              {greetingFor(viewer.timezone, now)},
+              <span>{viewer.fullName}</span>
+            </h1>
+            <p className="page-description">
+              Here is what needs your attention next.
+            </p>
+          </div>
+        </header>
         <MoriMascot
           state="wave"
           size="large"
           alt=""
           className="home-hero-mori"
         />
-      </header>
-      <div className="home-priority-grid">
-        <HomeAssistantComposer
-          cloudFallbackConfigured={cloudFallbackConfigured}
-        />
-        <section className="next-up-panel">
-          <div className="flex items-center justify-between">
-            <p className="eyebrow text-white/60">Next up</p>
-            {nextUp ? (
-              <Clock3 className="size-6 text-[var(--mori-river-strong)]" />
-            ) : (
-              <MoonStar className="size-7 text-[var(--mori-river-strong)]" />
-            )}
-          </div>
-          {nextUp ? (
-            <>
-              <p className="mt-5 text-sm text-white/65">
-                {formatTime(nextUp.startAt, viewer.timezone)} ·{" "}
-                {nextUp.category ?? nextUp.type}
-              </p>
-              <h2>{nextUp.title}</h2>
-              {nextUp.locationLabel && (
-                <p className="mt-2 text-sm text-white/65">
-                  {nextUp.locationLabel}
-                </p>
+        <div className="home-priority-grid">
+          <HomeAssistantComposer
+            cloudFallbackConfigured={cloudFallbackConfigured}
+          />
+          <section className="next-up-panel">
+            <div className="flex items-center justify-between">
+              <p className="eyebrow text-white/60">Next up</p>
+              {nextUp ? (
+                <Clock3 className="size-6 text-[var(--mori-river-strong)]" />
+              ) : (
+                <MoonStar className="size-7 text-[var(--mori-river-strong)]" />
               )}
-              <Link
-                href="/planner"
-                className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-[var(--cyan)]"
-              >
-                Open in Planner <ArrowRight className="size-4" />
-              </Link>
-            </>
-          ) : (
-            <>
-              <h2 className="mt-5">Your schedule is clear</h2>
-              <p className="mt-2 text-sm text-white/65">
-                There are no upcoming timed items.
-              </p>
-              <p className="next-up-celebration">
-                <CheckCircle2 className="size-5" /> Great job!
-              </p>
-            </>
-          )}
-        </section>
+            </div>
+            {nextUp ? (
+              <>
+                <p className="mt-5 text-sm text-white/65">
+                  {formatTime(nextUp.startAt, viewer.timezone)} ·{" "}
+                  {nextUp.category ?? nextUp.type}
+                </p>
+                <h2>{nextUp.title}</h2>
+                {nextUp.locationLabel && (
+                  <p className="mt-2 text-sm text-white/65">
+                    {nextUp.locationLabel}
+                  </p>
+                )}
+                <Link
+                  href="/planner"
+                  className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-[var(--cyan)]"
+                >
+                  Open in Planner <ArrowRight className="size-4" />
+                </Link>
+              </>
+            ) : (
+              <>
+                <h2 className="mt-5">Your schedule is clear</h2>
+                <p className="mt-2 text-sm text-white/65">
+                  There are no upcoming timed items.
+                </p>
+                <p className="next-up-celebration">
+                  <CheckCircle2 className="size-5" /> Great job!
+                </p>
+              </>
+            )}
+          </section>
+        </div>
       </div>
       <DayGuardian items={items} />
 

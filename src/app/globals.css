@@ -1226,11 +1226,16 @@ a {
   margin-top: 1.25rem;
 }
 
+.home-plan-composition {
+  isolation: isolate;
+  overflow: visible;
+  position: relative;
+}
 .home-priority-grid {
   display: grid;
   gap: 1rem;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-  margin-top: max(-7rem, -16vw);
+  margin-top: -1rem;
   position: relative;
   z-index: 2;
 }
@@ -1253,7 +1258,7 @@ a {
   overflow: visible;
   padding: clamp(0.75rem, 2.5vw, 1.5rem) 0 clamp(1rem, 3vw, 2rem);
   position: relative;
-  z-index: 1;
+  z-index: 3;
 }
 .home-hero::before {
   background:
@@ -1270,7 +1275,7 @@ a {
   z-index: -1;
 }
 .home-hero-copy {
-  max-width: min(78%, 42rem);
+  max-width: min(64%, 42rem);
   position: relative;
   z-index: 2;
 }
@@ -1290,19 +1295,20 @@ a {
   max-width: min(38rem, 62vw);
 }
 .home-hero .page-description {
-  font-size: clamp(0.8rem, 2.8vw, 0.925rem);
+  font-size: clamp(0.75rem, 2.8vw, 0.925rem);
   line-height: 1.4;
   margin-top: 0.4rem;
 }
 .home-hero-mori {
-  bottom: -4.75rem;
+  bottom: auto;
   filter: drop-shadow(0 18px 18px rgba(18, 53, 116, 0.18));
-  height: clamp(13.5rem, 64vw, 25rem);
+  height: clamp(18rem, 90vw, 30rem);
   pointer-events: none;
   position: absolute;
-  right: max(-5rem, -12vw);
-  width: clamp(13.5rem, 64vw, 25rem);
-  z-index: 3;
+  right: max(-9rem, -34vw);
+  top: clamp(0.25rem, 2vw, 1rem);
+  width: clamp(18rem, 90vw, 30rem);
+  z-index: 1;
 }
 .next-up-panel {
   background:
@@ -2076,13 +2082,28 @@ a {
   }
 }
 
+@media (max-width: 340px) {
+  .home-hero-copy {
+    max-width: 64%;
+  }
+  .home-hero-title {
+    font-size: 1.5rem;
+  }
+  .home-hero-mori {
+    height: 90vw;
+    right: -7.5rem;
+    top: 3rem;
+    width: 90vw;
+  }
+}
+
 @media (min-width: 900px) {
   .home-hero-copy {
     max-width: min(62%, 42rem);
   }
   .home-hero-mori {
-    bottom: -5.5rem;
     right: 2rem;
+    top: 1.5rem;
   }
   .home-plan-entry-copy {
     padding-right: 0;
