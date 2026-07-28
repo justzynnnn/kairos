@@ -40,13 +40,13 @@ export function AppShell({
   const isConversation = path.startsWith("/inbox/chats/");
 
   return (
-    <div className="min-h-screen lg:grid lg:grid-cols-[232px_1fr]">
+    <div className="mori-app-shell min-h-screen lg:grid lg:grid-cols-[232px_1fr]">
       <DayStartObserver />
       <a href="#main-content" className="skip-link">
         Skip to content
       </a>
 
-      <aside className="fixed inset-y-0 left-0 hidden w-[232px] border-r border-[var(--outline-soft)] bg-white px-4 py-5 lg:flex lg:flex-col">
+      <aside className="mori-sidebar fixed inset-y-0 left-0 hidden w-[232px] border-r border-[var(--outline-soft)] bg-white px-4 py-5 lg:flex lg:flex-col">
         <Brand />
         <nav
           aria-label="Primary navigation"
@@ -103,16 +103,16 @@ export function AppShell({
         </div>
       </aside>
 
-      <div className="min-w-0 lg:col-start-2">
+      <div className="mori-content-frame min-w-0 lg:col-start-2">
         <header
-          className={`sticky top-0 z-30 border-b border-black/5 bg-[var(--background)]/92 px-4 pb-2.5 pt-[max(.65rem,env(safe-area-inset-top))] backdrop-blur lg:hidden ${isConversation ? "thread-global-header" : ""}`}
+          className={`mori-mobile-header sticky top-0 z-30 border-b border-black/5 bg-[var(--background)]/92 px-4 pb-2.5 pt-[max(.65rem,env(safe-area-inset-top))] backdrop-blur lg:hidden ${isConversation ? "thread-global-header" : ""}`}
         >
           <Brand />
         </header>
         <main
           id="main-content"
           tabIndex={-1}
-          className={`mx-auto min-h-screen max-w-[1180px] px-4 pb-28 pt-4 sm:px-6 lg:px-8 lg:pb-12 lg:pt-7 ${isConversation ? "thread-main" : ""}`}
+          className={`mori-main mx-auto min-h-screen max-w-[1180px] px-4 pb-28 pt-4 sm:px-6 lg:px-8 lg:pb-12 lg:pt-7 ${isConversation ? "thread-main" : ""}`}
         >
           {viewer.preview && (
             <div className={isConversation ? "thread-preview-banner" : ""}>
@@ -126,7 +126,7 @@ export function AppShell({
       <nav
         aria-label="Primary navigation"
         data-testid="mobile-navigation"
-        className={`safe-bottom fixed inset-x-0 bottom-0 z-50 border-t border-[var(--outline-soft)] bg-white/96 px-2 pt-1.5 shadow-[0_-6px_24px_rgba(10,36,87,.08)] backdrop-blur lg:hidden ${isConversation ? "thread-global-nav" : ""}`}
+        className={`mori-mobile-navigation safe-bottom fixed inset-x-0 bottom-0 z-50 border-t border-[var(--outline-soft)] bg-white/96 px-2 pt-1.5 shadow-[0_-6px_24px_rgba(10,36,87,.08)] backdrop-blur lg:hidden ${isConversation ? "thread-global-nav" : ""}`}
       >
         <div className="mx-auto grid max-w-xl grid-cols-5">
           {navigation.map(({ label, href, icon: Icon }) => {

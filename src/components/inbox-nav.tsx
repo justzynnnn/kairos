@@ -15,7 +15,7 @@ export function InboxNav({
   demoUser?: string;
 }) {
   return (
-    <nav aria-label="Inbox sections" className="section-tabs">
+    <nav aria-label="Inbox sections" className="section-tabs mori-inbox-nav">
       {items.map(([href, label]) => (
         <Link
           key={href}

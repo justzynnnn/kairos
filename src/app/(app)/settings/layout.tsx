@@ -11,7 +11,7 @@ export default function SettingsLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="page-stack settings-page">
+    <div className="page-stack settings-page mori-settings-page">
       <header className="page-header">
         <div>
           <p className="eyebrow">Account & controls</p>
@@ -24,7 +24,7 @@ export default function SettingsLayout({
       </header>
       <div className="settings-layout">
         <SettingsNav />
-        <section className="min-w-0" aria-label="Settings content">
+        <section className="mori-settings-content min-w-0" aria-label="Settings content">
           {children}
         </section>
       </div>

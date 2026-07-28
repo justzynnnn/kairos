@@ -22,14 +22,14 @@ export function HomeAssistantComposer({
   }
 
   return (
-    <section className="assistant-entry">
-      <div>
-        <MoriMascot
-          state="wave"
-          size="small"
-          alt=""
-          className="assistant-entry-mori"
-        />
+    <section className="assistant-entry home-plan-entry">
+      <MoriMascot
+        state="cardEdgeWave"
+        size="large"
+        alt=""
+        className="home-plan-entry-mori"
+      />
+      <div className="assistant-entry-copy">
         <p className="font-display font-semibold">Plan with Mori</p>
         <p>
           Start here, then review assumptions, conflicts, and every proposed

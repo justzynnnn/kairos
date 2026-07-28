@@ -62,6 +62,9 @@ export function HomeDashboard({
       </header>
       <DayGuardian items={items} />
       <div className="home-priority-grid">
+        <HomeAssistantComposer
+          cloudFallbackConfigured={cloudFallbackConfigured}
+        />
         <section className="next-up-panel">
           <div className="flex items-center justify-between">
             <p className="eyebrow text-white/60">Next up</p>
@@ -95,9 +98,6 @@ export function HomeDashboard({
             </>
           )}
         </section>
-        <HomeAssistantComposer
-          cloudFallbackConfigured={cloudFallbackConfigured}
-        />
       </div>
 
       <div className="home-detail-grid">

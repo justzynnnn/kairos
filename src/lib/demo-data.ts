@@ -2,7 +2,7 @@ import type { CalendarItem, Viewer } from "@/lib/types";
 export const DEMO_USER_ID = "11111111-1111-4111-8111-111111111111";
 export const demoViewer: Viewer = {
   id: DEMO_USER_ID,
-  email: "demo@kairos.app",
+  email: "demo@mori.app",
   fullName: "Justin",
   username: "justin",
   timezone: "Asia/Manila",

@@ -10,6 +10,7 @@ import {
   MessageSquarePlus,
   Search,
 } from "lucide-react";
+import { MoriMascot } from "@/components/mori-mascot";
 import type { ConversationContact } from "@/lib/conversations/types";
 
 type DemoRole = "justin" | "chloe";
@@ -233,7 +234,8 @@ export function ConversationList({
             ))}
           </ul>
         ) : (
-          <div className="empty-state">
+          <div className="empty-state mori-empty-state">
+            {!query && <MoriMascot state="emptyInbox" size="medium" alt="" />}
             <MessageSquarePlus className="size-7" />
             <h2>{query ? "No conversations match" : "No conversations yet"}</h2>
             <p>

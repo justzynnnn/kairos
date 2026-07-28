@@ -14,7 +14,7 @@ export default async function MeetingsPage({
   const { demoUser } = await searchParams;
   const role = demoUser === "chloe" ? "chloe" : "justin";
   return (
-    <div className="page-stack">
+    <div className="page-stack mori-inbox-page">
       <header className="page-header">
         <div>
           <p className="eyebrow">Coordination</p>

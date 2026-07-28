@@ -8,6 +8,7 @@ import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { CalendarItemActions } from "@/components/calendar-item-actions";
 import { CalendarItemCard } from "@/components/calendar-item-card";
 import { JourneyMode } from "@/components/journey-mode";
+import { MoriMascot } from "@/components/mori-mascot";
 import { RepairWorkspace as RepairWorkspacePanel } from "@/components/repair-workspace";
 import { formatTime, localDateKey } from "@/lib/format";
 import type { CalendarItem } from "@/lib/types";
@@ -189,7 +190,7 @@ export function PlannerView({
     currentMinutes <= latestItem;
 
   return (
-    <div className="page-stack planner-page">
+    <div className="page-stack planner-page mori-planner-page">
       <header className="page-header">
         <div>
           <p className="eyebrow">Schedule workspace</p>
@@ -346,7 +347,8 @@ export function PlannerView({
                   </div>
                 ))
               ) : (
-                <div className="empty-state day-timeline-empty">
+                <div className="empty-state day-timeline-empty mori-empty-state">
+                  <MoriMascot state="emptySchedule" size="medium" alt="" />
                   <h2>Nothing scheduled</h2>
                   <p>Create an item or leave this time intentionally open.</p>
                 </div>

@@ -1,19 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f4f6fa;
-  --surface: #ffffff;
-  --surface-low: #eef2f8;
-  --surface-high: #e5ebf5;
-  --ink: #10203f;
-  --muted: #687184;
-  --outline: #c9d3e1;
-  --outline-soft: #dde3ec;
-  --navy: #0b2b63;
-  --navy-container: #1c2541;
-  --cyan: #67e8f9;
-  --cyan-deep: #006780;
-  --cyan-soft: #e8fbff;
+  --background: #f7f8fb;
+  --surface: #fffefa;
+  --surface-low: #f0f3f7;
+  --surface-high: #e5eaf1;
+  --ink: #17243b;
+  --muted: #5c687a;
+  --outline: #c6d0dc;
+  --outline-soft: #dde4ec;
+  --navy: #123574;
+  --navy-container: #1d3156;
+  --cyan: #62deed;
+  --cyan-deep: #006d83;
+  --cyan-soft: #e2f9fc;
   --sky: #38bdf8;
   --lavender: #8b7cfa;
   --mint: #4dd4a6;
@@ -22,13 +22,26 @@
   --gold-soft: #fff8d8;
   --error: #ba1a1a;
   --success: #057a55;
+  --mori-cream: #fff5d9;
+  --mori-cream-strong: #f5ddb0;
+  --mori-river: #dff6fa;
+  --mori-river-strong: #78d8e6;
+  --focus-ring: #007e99;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --radius-card: 1.25rem;
+  --radius-panel: 1.5rem;
   --motion-ease: cubic-bezier(0.2, 0, 0, 1);
   --motion-quick: 120ms;
   --motion-standard: 240ms;
   --motion-slow: 360ms;
-  --shadow-card: 0 4px 18px rgba(11, 43, 99, 0.07);
-  --shadow-card-hover: 0 12px 28px rgba(11, 43, 99, 0.13);
-  --shadow-raised: 0 14px 34px rgba(11, 43, 99, 0.14);
+  --shadow-card: 0 5px 18px rgba(18, 53, 116, 0.08);
+  --shadow-card-hover: 0 14px 30px rgba(18, 53, 116, 0.15);
+  --shadow-raised: 0 16px 36px rgba(18, 53, 116, 0.15);
 }
 
 * {
@@ -37,6 +50,7 @@
 html {
   background: var(--background);
   color: var(--ink);
+  color-scheme: light;
   scroll-behavior: smooth;
 }
 body {
@@ -44,14 +58,14 @@ body {
   min-height: 100vh;
   background:
     radial-gradient(
-      circle at 92% 2%,
-      rgba(56, 189, 248, 0.09),
-      transparent 22rem
+      circle at 93% 0%,
+      color-mix(in srgb, var(--mori-river) 82%, transparent),
+      transparent 25rem
     ),
     radial-gradient(
-      circle at 5% 100%,
-      rgba(139, 124, 250, 0.055),
-      transparent 28rem
+      circle at 3% 100%,
+      color-mix(in srgb, var(--mori-cream) 78%, transparent),
+      transparent 30rem
     ),
     var(--background);
   font-family: var(--font-inter), Inter, system-ui, sans-serif;
@@ -106,7 +120,7 @@ a {
   text-decoration: none;
 }
 :focus-visible {
-  outline: 3px solid rgba(76, 201, 240, 0.72);
+  outline: 3px solid var(--focus-ring);
   outline-offset: 3px;
 }
 
@@ -139,18 +153,18 @@ a {
 .card {
   background: var(--surface);
   border: 1px solid var(--outline-soft);
-  border-radius: 1.25rem;
+  border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
 }
 .section-surface {
   background: color-mix(in srgb, var(--surface-low) 72%, white);
   border: 1px solid var(--outline-soft);
-  border-radius: 1.5rem;
+  border-radius: var(--radius-panel);
 }
 .raised-panel {
   background: var(--surface);
   border: 1px solid var(--outline-soft);
-  border-radius: 1.5rem;
+  border-radius: var(--radius-panel);
   box-shadow: var(--shadow-raised);
 }
 .card-hover {
@@ -226,12 +240,12 @@ a {
   color: var(--navy);
 }
 .nav-item-active {
-  background: var(--navy);
+  background: linear-gradient(135deg, var(--navy), #1a4b91);
   color: white;
   box-shadow: 0 4px 14px rgba(10, 36, 87, 0.18);
 }
 .nav-item-active:hover {
-  background: var(--navy);
+  background: linear-gradient(135deg, var(--navy), #1a4b91);
   color: white;
 }
 .mobile-nav-item {
@@ -247,7 +261,7 @@ a {
   min-height: 3.65rem;
 }
 .mobile-nav-item-active {
-  background: linear-gradient(135deg, var(--navy), #174788);
+  background: linear-gradient(135deg, var(--navy), #1a4b91);
   color: white;
 }
 
@@ -281,6 +295,33 @@ a {
 }
 .safe-bottom {
   padding-bottom: max(0.7rem, env(safe-area-inset-bottom));
+}
+
+.mori-app-shell {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface) 70%, transparent), transparent 24rem),
+    var(--background);
+  overflow-x: clip;
+}
+.mori-sidebar {
+  background: color-mix(in srgb, var(--surface) 94%, var(--mori-cream));
+  box-shadow: 10px 0 28px rgba(18, 53, 116, 0.035);
+}
+.mori-content-frame {
+  min-width: 0;
+}
+.mori-main {
+  position: relative;
+}
+.mori-mobile-header,
+.mori-mobile-navigation {
+  background: color-mix(in srgb, var(--surface) 93%, var(--mori-cream));
+}
+.mori-brand {
+  letter-spacing: -0.025em;
+}
+.mori-brand-mark {
+  box-shadow: 0 6px 16px rgba(18, 53, 116, 0.18);
 }
 
 .page-stack {
@@ -479,6 +520,15 @@ a {
   font-size: 0.875rem;
   max-width: 26rem;
 }
+.mori-empty-state {
+  background: linear-gradient(135deg, var(--surface), var(--mori-cream));
+  border: 1px dashed color-mix(in srgb, var(--gold) 44%, var(--outline-soft));
+  border-radius: var(--radius-card);
+}
+.mori-empty-state .mori-mascot {
+  filter: drop-shadow(0 10px 14px rgba(18, 53, 116, 0.1));
+  margin-bottom: 0.25rem;
+}
 
 .motion-illustration {
   height: 8.5rem;
@@ -543,6 +593,15 @@ a {
   }
   .motion-illustration {
     display: none;
+  }
+}
+@media (forced-colors: active) {
+  :focus-visible {
+    outline-color: CanvasText;
+  }
+  .nav-item-active,
+  .mobile-nav-item-active {
+    border: 1px solid CanvasText;
   }
 }
 .inline-error,
@@ -829,6 +888,12 @@ a {
   gap: 2rem;
   grid-template-columns: 12.5rem minmax(0, 1fr);
 }
+.mori-settings-page .page-header {
+  padding-bottom: 0.25rem;
+}
+.mori-settings-content {
+  container-type: inline-size;
+}
 .settings-nav {
   display: grid;
   gap: 0.25rem;
@@ -861,10 +926,11 @@ a {
 }
 .settings-section {
   background: var(--surface);
-  border: 1px solid var(--outline-soft);
+  border: 1px solid color-mix(in srgb, var(--outline-soft) 82%, var(--mori-river-strong));
   border-radius: 1.1rem;
   overflow: hidden;
   padding: clamp(1rem, 3vw, 1.5rem);
+  box-shadow: 0 3px 12px rgba(18, 53, 116, 0.045);
 }
 .settings-section-heading {
   align-items: flex-start;
@@ -1148,6 +1214,15 @@ a {
   gap: 1rem;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
 }
+.home-page,
+.home-page > *,
+.home-priority-grid,
+.home-detail-grid {
+  min-width: 0;
+}
+.home-page {
+  width: 100%;
+}
 .next-up-panel {
   background: var(--navy);
   border-radius: 1.25rem;
@@ -1174,17 +1249,41 @@ a {
   gap: 1rem;
   padding: clamp(1.1rem, 3vw, 1.6rem);
 }
-.assistant-entry > div:first-child {
+.assistant-entry-copy {
   display: grid;
-  grid-template-columns: auto 1fr;
-  column-gap: 0.7rem;
+  gap: 0.2rem;
 }
-.assistant-entry > div:first-child p:last-child {
+.assistant-entry-copy p:last-child {
   color: var(--muted);
   font-size: 0.78rem;
-  grid-column: 2;
   line-height: 1.45;
   margin-top: 0.2rem;
+}
+.home-plan-entry {
+  isolation: isolate;
+  overflow: visible;
+  position: relative;
+}
+.home-plan-entry-mori {
+  bottom: 100%;
+  filter: drop-shadow(0 12px 14px rgba(18, 53, 116, 0.12));
+  position: absolute;
+  right: 0.25rem;
+  transform: translate(-3rem, 54%);
+  width: clamp(7rem, 18vw, 10.5rem);
+  z-index: 1;
+}
+@media (min-width: 640px) {
+  .home-plan-entry-mori {
+    right: 1rem;
+  }
+}
+.home-plan-entry .assistant-entry-copy,
+.home-plan-entry .assistant-entry-field,
+.home-plan-entry small {
+  max-width: calc(100% - clamp(5.2rem, 18vw, 9.5rem));
+  position: relative;
+  z-index: 2;
 }
 .assistant-entry-icon {
   align-items: center;
@@ -1232,6 +1331,44 @@ a {
 .assistant-entry small {
   color: var(--muted);
   font-size: 0.68rem;
+}
+
+.assistant-workspace {
+  container-type: inline-size;
+}
+.assistant-command-card,
+.assistant-followup-card,
+.assistant-proposal-card {
+  box-shadow: var(--shadow-card);
+}
+.assistant-command-heading,
+.assistant-state-heading,
+.assistant-proposal-heading {
+  align-items: start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+.assistant-command-heading > div,
+.assistant-state-heading > div,
+.assistant-proposal-heading {
+  min-width: 0;
+}
+.assistant-command-heading .mori-mascot,
+.assistant-state-heading .mori-mascot,
+.assistant-proposal-card header > .mori-mascot {
+  flex: 0 0 auto;
+}
+.assistant-state-message {
+  align-items: center;
+}
+.assistant-state-message .mori-mascot {
+  display: none;
+}
+@container (min-width: 34rem) {
+  .assistant-state-message .mori-mascot {
+    display: block;
+  }
 }
 .home-detail-grid {
   align-items: start;
@@ -1342,7 +1479,7 @@ a {
 }
 .planner-toolbar {
   align-items: center;
-  background: var(--surface);
+  background: linear-gradient(135deg, var(--surface), color-mix(in srgb, var(--mori-river) 38%, var(--surface)));
   border: 1px solid var(--outline-soft);
   border-radius: 1rem;
   display: flex;
@@ -1361,6 +1498,31 @@ a {
   border-radius: 1.1rem;
   overflow: hidden;
   position: relative;
+}
+.mori-planner-page .page-header {
+  align-items: center;
+}
+.mori-planner-page .day-calendar,
+.mori-planner-page .week-calendar {
+  box-shadow: var(--shadow-card);
+}
+.mori-inbox-page .page-header {
+  align-items: center;
+}
+.mori-inbox-nav {
+  background: color-mix(in srgb, var(--surface) 76%, var(--mori-river));
+  border: 1px solid var(--outline-soft);
+  border-radius: 1rem;
+  padding-inline: 0.35rem;
+}
+.mori-inbox-nav .section-tab {
+  border-bottom: 0;
+  border-radius: 0.7rem;
+  margin-block: 0.3rem;
+}
+.mori-inbox-nav .section-tab[aria-current="page"] {
+  background: var(--surface);
+  box-shadow: 0 2px 8px rgba(18, 53, 116, 0.1);
 }
 .day-calendar > header {
   border-bottom: 1px solid var(--outline-soft);

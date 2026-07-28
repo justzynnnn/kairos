@@ -16,6 +16,7 @@ import type {
 } from "@/lib/scheduling/schema";
 import { fromDateTimeLocal, toDateTimeLocal } from "@/lib/format";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { MoriMascot } from "@/components/mori-mascot";
 import {
   clearNativePlannerHistory,
   interpretNatively,
@@ -216,18 +217,24 @@ export function AssistantWorkspace({
     }
   }
   return (
-    <div className="space-y-5">
-      <section className="card p-5">
-        <label
-          htmlFor="command"
-          className="font-display text-lg font-semibold text-[var(--navy)]"
-        >
-          What needs to happen?
-        </label>
-        <p className="mt-1 text-sm text-[var(--muted)]">
-          Describe the outcome. Mori will show assumptions and ask when a
-          detail matters.
-        </p>
+    <div className="assistant-workspace space-y-5">
+      <section className="assistant-command-card card p-5">
+        <div className="assistant-command-heading">
+          <div>
+            <p className="eyebrow">A review-first workspace</p>
+            <label
+              htmlFor="command"
+              className="font-display mt-1 block text-lg font-semibold text-[var(--navy)]"
+            >
+              What needs to happen?
+            </label>
+            <p className="mt-1 text-sm text-[var(--muted)]">
+              Describe the outcome. Mori will show assumptions and ask when a
+              detail matters.
+            </p>
+          </div>
+          <MoriMascot state={busy ? "loading" : "planning"} size="small" alt="" />
+        </div>
         <div className="mt-3 flex flex-wrap gap-2">
           {[
             "Plan gym three times next week",
@@ -307,8 +314,9 @@ export function AssistantWorkspace({
       {error && (
         <div
           role="alert"
-          className="flex gap-3 rounded-xl bg-[#ffdad6] p-4 text-sm text-[#93000a]"
+          className="assistant-state-message assistant-state-error flex gap-3 rounded-xl bg-[#ffdad6] p-4 text-sm text-[#93000a]"
         >
+          <MoriMascot state="error" size="small" alt="" className="shrink-0" />
           <AlertCircle className="size-5 shrink-0" />
           {error}
         </div>
@@ -316,18 +324,24 @@ export function AssistantWorkspace({
       {success && (
         <div
           role="status"
-          className="motion-success-enter flex gap-3 rounded-xl bg-[#d9fbe8] p-4 text-sm text-[var(--success)]"
+          className="assistant-state-message motion-success-enter flex gap-3 rounded-xl bg-[#d9fbe8] p-4 text-sm text-[var(--success)]"
         >
+          <MoriMascot state="success" size="small" alt="" className="shrink-0" />
           <Check className="size-5" />
           {success}
         </div>
       )}
       {follow && (
-        <section className="card border-l-4 border-l-[var(--gold)] p-5">
-          <p className="eyebrow">One essential detail</p>
-          <h2 className="font-display mt-2 text-xl font-semibold text-[var(--navy)]">
-            {follow.question}
-          </h2>
+        <section className="assistant-followup-card card border-l-4 border-l-[var(--gold)] p-5">
+          <div className="assistant-state-heading">
+            <div>
+              <p className="eyebrow">One essential detail</p>
+              <h2 className="font-display mt-2 text-xl font-semibold text-[var(--navy)]">
+                {follow.question}
+              </h2>
+            </div>
+            <MoriMascot state="thinking" size="small" alt="" />
+          </div>
           {follow.provider === "deterministic" &&
             follow.cloudFallbackAvailable &&
             cloudFallbackConfigured && (
@@ -430,15 +444,19 @@ export function AssistantWorkspace({
         </section>
       )}
       {proposal && (
-        <section className="motion-card-enter card overflow-hidden">
+        <section className="assistant-proposal-card motion-card-enter card overflow-hidden">
           <header className="border-b bg-[var(--surface-low)] p-5">
             <div className="flex flex-wrap justify-between gap-3">
-              <div>
+              <div className="assistant-proposal-heading">
                 <p className="eyebrow">Editable confirmation</p>
                 <h2 className="font-display mt-1 text-2xl font-semibold text-[var(--navy)]">
                   {proposal.summary}
                 </h2>
+                <p className="mt-3 text-sm font-medium text-[var(--cyan-deep)]">
+                  Proposal ready for review. Your calendar has not changed.
+                </p>
               </div>
+              <MoriMascot state="reviewing" size="small" alt="" />
               <span className="rounded-full bg-[var(--gold-soft)] px-3 py-1 text-xs font-bold text-[var(--gold-deep)]">
                 {proposal.provider === "apple-intelligence"
                   ? "Interpreted on device"
@@ -452,9 +470,6 @@ export function AssistantWorkspace({
                 {proposal.providerNotice}
               </p>
             )}
-            <p className="mt-3 text-sm font-medium text-[var(--cyan-deep)]">
-              Proposal ready for review. Your calendar has not changed.
-            </p>
           </header>
           <div className="grid gap-4 p-5">
             {proposal.items.map((item, i) => (

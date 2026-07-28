@@ -20,7 +20,7 @@ import { AppError } from "@/lib/http";
 export const CHLOE_ID = "22222222-2222-4222-8222-222222222222";
 export const chloeViewer: Viewer = {
   id: CHLOE_ID,
-  email: "chloe@kairos.app",
+  email: "chloe@mori.app",
   fullName: "Chloe",
   username: "chloe",
   timezone: "Asia/Manila",

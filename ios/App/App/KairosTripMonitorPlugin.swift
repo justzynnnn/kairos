@@ -188,7 +188,7 @@ final class KairosTripMonitorPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationMana
 
     private func sendRepairNotification(incidentId: String, reason: String?) {
         let content = UNMutableNotificationContent()
-        content.title = "Kairos repaired your schedule"
+        content.title = "Mori repaired your schedule"
         content.body = reason ?? "Traffic changed the flexible parts of your day. Tap to review or undo."
         content.sound = .default
         content.userInfo = ["incidentId": incidentId, "path": "/?incident=\(incidentId)"]

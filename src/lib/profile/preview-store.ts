@@ -142,7 +142,7 @@ const previewDirectory = [
     id: "33333333-3333-4333-8333-333333333334",
     name: "Noah Santos",
     username: "noah",
-    email: "noah@kairos.app",
+    email: "noah@mori.app",
   },
 ];
 export function matchPreviewContacts(emails: string[]): UserSearchResult[] {

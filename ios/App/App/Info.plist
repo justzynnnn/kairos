@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>Kairos</string>
+        <string>Mori</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -36,15 +36,15 @@
 		<true/>
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Kairos connects to a Kairos server running on your own computer when you are testing a development build.</string>
+	<string>Mori connects to a Mori server running on your own computer when you are testing a development build.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Kairos uses your location only during a Journey to estimate traffic and protect your schedule.</string>
+	<string>Mori uses your location only during a Journey to estimate traffic and protect your schedule.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Kairos uses the microphone only while you dictate a scheduling request. Audio stays on this device.</string>
+	<string>Mori uses the microphone only while you dictate a scheduling request. Audio stays on this device.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Kairos converts your voice into editable scheduling text on this device.</string>
+	<string>Mori converts your voice into editable scheduling text on this device.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>When you start a Journey, Kairos can continue traffic monitoring in the background until you arrive or stop the trip.</string>
+	<string>When you start a Journey, Mori can continue traffic monitoring in the background until you arrive or stop the trip.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>

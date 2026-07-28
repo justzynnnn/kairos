@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 import { formatDate, formatTime } from "@/lib/format";
+import { MoriMascot } from "@/components/mori-mascot";
 import type { MeetingCard } from "@/lib/meetings/types";
 
 const labels: Record<MeetingCard["state"], string> = {
@@ -294,6 +295,14 @@ export function MeetingInbox({
         {visibleMeetings.length === 0 ? (
           <div className="card grid min-h-72 place-items-center p-8 text-center">
             <div>
+              {!meetingId && (
+                <MoriMascot
+                  state="emptyInbox"
+                  size="medium"
+                  alt=""
+                  className="mx-auto mb-2"
+                />
+              )}
               <Inbox className="mx-auto size-10 text-[var(--cyan-deep)]" />
               <h2 className="font-display mt-4 text-xl font-semibold text-[var(--navy)]">
                 {meetingId ? "Meeting unavailable" : "No meetings in this view"}

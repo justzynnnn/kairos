@@ -20,7 +20,8 @@ describe("motion foundation", () => {
     expect(motion).toContain("MoriMascot");
     expect(motion).toContain('aria-hidden="true"');
     expect(assets).toContain('"onboarding"');
-    expect(assets).toContain('"/mori/mori-idle.png"');
+    expect(assets).toContain('"/mori/static/mori-idle.png"');
+    expect(assets).not.toContain('"/mori/mori-idle.png"');
   });
 
   it("keeps AI and repair animation honest about pending review", () => {

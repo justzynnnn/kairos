@@ -14,7 +14,7 @@ export default async function PeoplePage({
   const { demoUser } = await searchParams;
   const role = demoUser === "chloe" ? "chloe" : "justin";
   return (
-    <div className="page-stack">
+    <div className="page-stack mori-inbox-page">
       <header className="page-header">
         <div>
           <p className="eyebrow">Connections</p>

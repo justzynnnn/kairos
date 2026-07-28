@@ -3,7 +3,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 const developmentServerUrl = process.env.KAIROS_MOBILE_DEV_SERVER_URL;
 const config: CapacitorConfig = {
   appId: "app.kairos.guardian",
-  appName: "Kairos",
+  appName: "Mori",
   webDir: "mobile-dist",
   server: developmentServerUrl
     ? {

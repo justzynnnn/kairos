@@ -1,6 +1,8 @@
 export const moriStates = [
   "idle",
   "wave",
+  "cardEdgeWave",
+  "listening",
   "thinking",
   "planning",
   "reviewing",
@@ -9,52 +11,87 @@ export const moriStates = [
   "conflict",
   "sleeping",
   "emptySchedule",
+  "emptyInbox",
   "inbox",
   "settings",
   "onboarding",
   "loading",
+  "error",
 ] as const;
 
 export type MoriState = (typeof moriStates)[number];
 
 export const moriAnimationMap: Record<MoriState, string[]> = {
   idle: ["Idle", "Breathing", "Blink"],
-  wave: ["Wave"],
-  thinking: ["Thinking"],
-  planning: ["Typing", "Planning"],
-  reviewing: ["Reviewing", "Thinking"],
-  success: ["Celebrate", "Happy", "Success"],
-  warning: ["Concerned", "Alert"],
-  conflict: ["Concerned", "Alert"],
-  sleeping: ["Sleep", "Rest"],
-  emptySchedule: ["Idle", "Breathing"],
-  inbox: ["Pointing", "Wave"],
+  wave: ["Wave", "Idle"],
+  cardEdgeWave: ["CardEdgeWave", "Wave", "Idle"],
+  listening: ["Listen", "Thinking", "Idle"],
+  thinking: ["Thinking", "Idle"],
+  planning: ["Planning", "Typing", "Idle"],
+  reviewing: ["Reviewing", "Thinking", "Idle"],
+  success: ["Celebrate", "Happy", "Success", "Idle"],
+  warning: ["Concerned", "Alert", "Idle"],
+  conflict: ["Concerned", "Alert", "Idle"],
+  sleeping: ["Sleep", "Rest", "Idle"],
+  emptySchedule: ["EmptyPlanner", "Idle", "Breathing"],
+  emptyInbox: ["EmptyInbox", "Pointing", "Wave", "Idle"],
+  inbox: ["Pointing", "Wave", "Idle"],
   settings: ["Thinking", "Idle"],
   onboarding: ["Wave", "Idle"],
-  loading: ["Typing", "Planning", "Idle"],
+  loading: ["Planning", "Typing", "Idle"],
+  error: ["Concerned", "Alert", "Idle"],
 };
 
 type MoriAsset = {
   image: string;
-  /** Add the uploaded GLB path here when the 3D model is ready. */
+  /** Add the generated, reviewed GLB path only after the 3D approval gate. */
   modelPath?: string;
 };
 
-const staticMori = "/mori/mori-idle.png";
-// Set this to a public GLB path (for example, "/mori/mori.glb") when supplied.
+const staticMori = {
+  idle: "/mori/static/mori-idle.png",
+  wave: "/mori/static/mori-wave.png",
+  thinking: "/mori/static/mori-thinking.png",
+  planning: "/mori/static/mori-planning.png",
+  reviewing: "/mori/static/mori-reviewing.png",
+  success: "/mori/static/mori-success.png",
+  conflict: "/mori/static/mori-conflict.png",
+  sleeping: "/mori/static/mori-sleeping.png",
+  emptySchedule: "/mori/static/mori-empty-planner.png",
+  emptyInbox: "/mori/static/mori-empty-inbox.png",
+} as const;
+
+// Set this to a public GLB path only after Blender generation and user review.
 const moriModelPath: string | undefined = undefined;
 
 /**
- * All Mori artwork is addressed through semantic states so components never
- * need to know asset filenames. The current PNG is deliberately used as the
- * fallback for every state until state-specific artwork or a GLB is supplied.
+ * States map to a single-pose static image first. The fallback is intentional:
+ * card-edge wave -> wave; listening -> thinking; loading -> planning;
+ * warning/error -> conflict; settings/onboarding -> idle; Inbox/Schedule
+ * emptiness uses its dedicated artwork. No state may fall back to a contact
+ * sheet or multi-pose presentation board.
  */
-export const moriAssets: Record<MoriState, MoriAsset> = Object.fromEntries(
-  moriStates.map((state) => [
-    state,
-    {
-      image: staticMori,
-      ...(moriModelPath ? { modelPath: moriModelPath } : {}),
-    },
-  ]),
-) as Record<MoriState, MoriAsset>;
+export const moriAssets: Record<MoriState, MoriAsset> = {
+  idle: { image: staticMori.idle },
+  wave: { image: staticMori.wave },
+  cardEdgeWave: { image: staticMori.wave },
+  listening: { image: staticMori.thinking },
+  thinking: { image: staticMori.thinking },
+  planning: { image: staticMori.planning },
+  reviewing: { image: staticMori.reviewing },
+  success: { image: staticMori.success },
+  warning: { image: staticMori.conflict },
+  conflict: { image: staticMori.conflict },
+  sleeping: { image: staticMori.sleeping },
+  emptySchedule: { image: staticMori.emptySchedule },
+  emptyInbox: { image: staticMori.emptyInbox },
+  inbox: { image: staticMori.emptyInbox },
+  settings: { image: staticMori.idle },
+  onboarding: { image: staticMori.idle },
+  loading: { image: staticMori.planning },
+  error: { image: staticMori.conflict },
+};
+
+if (moriModelPath) {
+  for (const asset of Object.values(moriAssets)) asset.modelPath = moriModelPath;
+}
